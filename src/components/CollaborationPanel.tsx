@@ -36,7 +36,7 @@ const CollaborationPanel = ({ projectId, isOwner }: CollaborationPanelProps) => 
       setCollaborators([
         {
           id: '1',
-          user_id: user.id,
+          user_id: user.uid,
           role: 'owner',
           username: user.email?.split('@')[0] || 'Owner',
           joined_at: new Date().toISOString(),

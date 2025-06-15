@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Clock, GitBranch, Download, RotateCcw } from "lucide-react";
 import { useProjectVersions, ProjectVersion } from "@/hooks/useProjectVersions";
 import { toast } from "sonner";
+import { Timestamp } from 'firebase/firestore';
 
 interface VersionHistoryProps {
   open: boolean;
@@ -49,8 +49,9 @@ const VersionHistory = ({ open, onClose, projectId, onRevertToVersion, currentCo
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('it-IT');
+  const formatDate = (timestamp: Timestamp) => {
+    if (!timestamp) return '';
+    return timestamp.toDate().toLocaleString('it-IT');
   };
 
   return (
