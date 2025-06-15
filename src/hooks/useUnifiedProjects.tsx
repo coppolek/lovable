@@ -35,9 +35,32 @@ export const useUnifiedProjects = () => {
     provider
   }));
 
+  // Wrapper functions to ensure returned projects have provider property
+  const createProject = async (name: string, description?: string) => {
+    const newProject = await currentHook.createProject(name, description);
+    return {
+      ...newProject,
+      created_at: provider === 'firebase' 
+        ? (newProject as any).created_at?.toDate?.() || newProject.created_at
+        : newProject.created_at,
+      updated_at: provider === 'firebase' 
+        ? (newProject as any).updated_at?.toDate?.() || newProject.updated_at
+        : newProject.updated_at,
+      provider
+    } as UnifiedProject;
+  };
+
+  const updateProject = async (id: string, updates: Partial<Omit<UnifiedProject, 'id' | 'created_at' | 'user_id' | 'provider'>>) => {
+    // Remove provider from updates since it shouldn't be updated
+    const { provider: _, ...cleanUpdates } = updates as any;
+    return currentHook.updateProject(id, cleanUpdates);
+  };
+
   return {
     ...currentHook,
     projects: transformedProjects,
     provider,
+    createProject,
+    updateProject,
   };
 };

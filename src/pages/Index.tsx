@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import ChatInterface from "@/components/ChatInterface";
@@ -36,7 +37,6 @@ const Index = () => {
       setShowProjectManager(false);
     }
   }, [authLoading, user, projects, selectedProject]);
-
 
   const handleToggleDevMode = () => {
     setDevMode(!devMode);
@@ -89,7 +89,10 @@ const Index = () => {
         const newProject = await createProject(template.name, template.description);
         await updateProject(newProject.id, { code: template.code });
         
-        const updatedProject = { ...newProject, code: template.code };
+        const updatedProject: UnifiedProject = { 
+          ...newProject, 
+          code: template.code 
+        };
         
         handleProjectSelect(updatedProject);
         toast.success(`Progetto "${template.name}" creato da template`);
