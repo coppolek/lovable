@@ -15,14 +15,14 @@ import {
 import VersionHistory from "./VersionHistory";
 import ProjectExport from "./ProjectExport";
 import AdvancedSettings from "./AdvancedSettings";
-import { Project } from "@/hooks/useProjects";
+import { UnifiedProject } from "@/hooks/useUnifiedProjects";
 
 interface HeaderProps {
   onToggleDevMode: () => void;
   devMode: boolean;
   onShare: () => void;
   onSettings: () => void;
-  currentProject?: Project;
+  currentProject?: UnifiedProject;
   onLogoClick: () => void;
   currentCode: string;
 }

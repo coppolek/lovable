@@ -43,13 +43,15 @@ const ProjectManager = ({ onProjectSelect, selectedProject, onNewProject }: Proj
     );
   }
 
+  const HeaderProviderIcon = getProviderIcon(provider);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-semibold">I tuoi progetti</h2>
           <Badge variant="outline" className="gap-1">
-            {getProviderIcon(provider)({ className: "w-3 h-3" })}
+            <HeaderProviderIcon className="w-3 h-3" />
             {provider === 'firebase' ? 'Firebase' : 'Supabase'}
           </Badge>
         </div>
