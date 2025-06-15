@@ -1,6 +1,16 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/integrations/firebase/client';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  getDocs, 
+  addDoc,
+  serverTimestamp,
+  Timestamp 
+} from 'firebase/firestore';
 import { useAuth } from './useAuth';
 
 export interface ProjectVersion {
@@ -9,7 +19,7 @@ export interface ProjectVersion {
   version_number: number;
   title: string;
   code: string;
-  created_at: string;
+  created_at: Timestamp;
   created_by: string;
 }
 
@@ -23,14 +33,17 @@ export const useProjectVersions = (projectId?: string) => {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('project_versions')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('version_number', { ascending: false });
-
-      if (error) throw error;
-      setVersions(data || []);
+      const q = query(
+        collection(db, 'project_versions'),
+        where('project_id', '==', projectId),
+        orderBy('version_number', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      const projectVersions = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      } as ProjectVersion));
+      setVersions(projectVersions);
     } catch (error) {
       console.error('Error fetching versions:', error);
     } finally {
@@ -44,22 +57,25 @@ export const useProjectVersions = (projectId?: string) => {
     const lastVersion = versions.length > 0 ? versions[0] : null;
     const newVersionNumber = lastVersion ? lastVersion.version_number + 1 : 1;
 
-    const { data, error } = await supabase
-      .from('project_versions')
-      .insert({
-        project_id: projectId,
-        version_number: newVersionNumber,
-        title,
-        code,
-        created_by: user.id,
-      })
-      .select()
-      .single();
+    const newVersionData = {
+      project_id: projectId,
+      version_number: newVersionNumber,
+      title,
+      code,
+      created_by: user.uid,
+      created_at: serverTimestamp(),
+    };
 
-    if (error) throw error;
+    const docRef = await addDoc(collection(db, 'project_versions'), newVersionData);
+    
+    const newVersion: ProjectVersion = {
+      id: docRef.id,
+      ...newVersionData,
+      created_at: Timestamp.now(),
+    };
 
-    setVersions(prev => [data, ...prev]);
-    return data;
+    setVersions(prev => [newVersion, ...prev]);
+    return newVersion;
   };
 
   const revertToVersion = async (versionId: string) => {

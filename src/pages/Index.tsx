@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import ChatInterface from "@/components/ChatInterface";
@@ -109,7 +108,7 @@ const Index = () => {
     setShowProjectManager(true);
   }
   
-  const isOwner = !!(selectedProject && user && selectedProject.user_id === user.id);
+  const isOwner = !!(selectedProject && user && selectedProject.user_id === user.uid);
   const isProjectView = user && selectedProject;
   const showLandingPage = !user && !authLoading;
 

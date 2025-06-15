@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -97,7 +96,7 @@ const ProjectManager = ({ onProjectSelect, selectedProject, onNewProject }: Proj
               <CardContent className="pt-0">
                 <div className="flex items-center justify-between text-sm text-gray-500">
                   <span>
-                    Aggiornato {new Date(project.updated_at).toLocaleDateString()}
+                    Aggiornato {project.updated_at ? project.updated_at.toDate().toLocaleDateString() : ''}
                   </span>
                 </div>
               </CardContent>
