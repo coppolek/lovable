@@ -1,20 +1,20 @@
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Bot, User, Loader2 } from "lucide-react";
+import { Send, Bot, User, Loader2, Code, Copy } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { AIService, Message } from "@/services/aiService";
 import { toast } from "sonner";
 
-interface Message {
+interface ChatMessage extends Message {
   id: string;
-  type: 'user' | 'ai';
-  content: string;
   timestamp: Date;
-  aiProvider?: string;
+  provider?: string;
+  codeBlock?: string;
 }
 
 interface ChatInterfaceProps {
@@ -22,242 +22,94 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      type: 'ai',
-      content: 'Ciao! Sono il tuo assistente AI. Puoi chiedermi di creare o modificare componenti React, e vedrái i risultati in tempo reale nel preview.',
+      role: 'assistant',
+      content: 'Ciao! Sono Lovable, il tuo assistente AI per creare applicazioni web. Dimmi cosa vuoi costruire e ti aiuterò a generare il codice React in tempo reale!',
       timestamp: new Date(),
-      aiProvider: 'system'
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedAI, setSelectedAI] = useState('openai');
-  const [apiKey, setApiKey] = useState('');
+  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
+  const { user } = useAuth();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const generateSampleCode = (prompt: string): string => {
-    const lowerPrompt = prompt.toLowerCase();
-    
-    if (lowerPrompt.includes('button') || lowerPrompt.includes('bottone')) {
-      return `import { Button } from "@/components/ui/button";
-
-const CustomButton = () => {
-  return (
-    <div className="p-8 flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
-      <Button 
-        className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3 rounded-lg shadow-lg transform transition-all duration-200 hover:scale-105"
-        onClick={() => alert('Button clicked!')}
-      >
-        Beautiful Button
-      </Button>
-    </div>
-  );
-};
-
-export default CustomButton;`;
-    }
-    
-    if (lowerPrompt.includes('card') || lowerPrompt.includes('scheda')) {
-      return `import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Star } from "lucide-react";
-
-const ProductCard = () => {
-  return (
-    <div className="p-8 flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
-      <Card className="w-80 overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-        <div className="h-48 bg-gradient-to-br from-blue-400 to-purple-500"></div>
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <CardTitle className="text-xl font-bold">Amazing Product</CardTitle>
-            <Badge variant="secondary">New</Badge>
-          </div>
-          <CardDescription>
-            A beautiful product card with gradient background and smooth animations
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="flex">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star key={star} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-              ))}
-            </div>
-            <span className="text-sm text-gray-600">(4.9)</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-2xl font-bold text-purple-600">$99.99</span>
-            <button className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200">
-              Add to Cart
-            </button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-export default ProductCard;`;
-    }
-    
-    if (lowerPrompt.includes('form') || lowerPrompt.includes('modulo')) {
-      return `import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Mail, User, MessageSquare } from "lucide-react";
-
-const ContactForm = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    message: ''
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert('Form submitted! ' + JSON.stringify(formData));
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  return (
-    <div className="p-8 flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-            Contact Us
-          </CardTitle>
-          <CardDescription>
-            We'd love to hear from you. Send us a message!
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                Name
-              </Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                placeholder="Your name"
-                className="transition-all duration-200 focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email" className="flex items-center gap-2">
-                <Mail className="w-4 h-4" />
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                placeholder="your@email.com"
-                className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="message" className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" />
-                Message
-              </Label>
-              <Textarea
-                id="message"
-                value={formData.message}
-                onChange={(e) => setFormData({...formData, message: e.target.value})}
-                placeholder="Your message..."
-                rows={4}
-                className="transition-all duration-200 focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 transition-all duration-200"
-            >
-              Send Message
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-export default ContactForm;`;
-    }
-
-    // Default component
-    return `import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles } from "lucide-react";
-
-const GeneratedComponent = () => {
-  return (
-    <div className="p-8 flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50">
-      <Card className="w-96 shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 bg-clip-text text-transparent flex items-center justify-center gap-2">
-            <Sparkles className="w-6 h-6 text-purple-600" />
-            AI Generated
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-center space-y-4">
-          <p className="text-gray-600">
-            This component was generated based on your request: "{prompt}"
-          </p>
-          <div className="p-4 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg">
-            <p className="text-sm font-medium text-purple-800">
-              ✨ Powered by AI
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-export default GeneratedComponent;`;
-  };
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
+    if (!user) {
+      toast.error('Devi essere autenticato per usare l\'AI');
+      return;
+    }
 
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      type: 'user',
+      role: 'user',
       content: inputValue,
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
+    setInputValue('');
 
-    // Simulate AI processing
-    setTimeout(() => {
-      const aiResponse: Message = {
+    try {
+      const conversationMessages: Message[] = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+      conversationMessages.push({ role: 'user', content: inputValue });
+
+      const response = await AIService.sendMessage(
+        conversationMessages, 
+        selectedAI, 
+        selectedModel
+      );
+
+      const extractedCode = AIService.extractCodeFromResponse(response.content);
+
+      const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        type: 'ai',
-        content: `Ho generato un componente basato sulla tua richiesta: "${inputValue}". Il codice è stato aggiornato nel preview!`,
+        role: 'assistant',
+        content: response.content,
         timestamp: new Date(),
-        aiProvider: selectedAI
+        provider: response.provider,
+        codeBlock: extractedCode || undefined
       };
 
-      setMessages(prev => [...prev, aiResponse]);
+      setMessages(prev => [...prev, aiMessage]);
       
-      // Generate and send code to preview
-      const generatedCode = generateSampleCode(inputValue);
-      onCodeGenerated(generatedCode);
-      
+      if (extractedCode) {
+        onCodeGenerated(extractedCode);
+        toast.success("Codice generato e aggiornato nel preview!");
+      } else {
+        // Generate fallback component based on user input
+        const fallbackCode = AIService.generateSampleComponent(inputValue);
+        onCodeGenerated(fallbackCode);
+      }
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 2).toString(),
+        role: 'assistant',
+        content: `Mi dispiace, si è verificato un errore: ${error.message}. Assicurati che la tua API key OpenAI sia configurata correttamente.`,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      toast.error("Errore nella comunicazione con l'AI");
+    } finally {
       setIsLoading(false);
-      toast.success("Componente generato con successo!");
-    }, 1500);
-
-    setInputValue('');
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -265,6 +117,11 @@ export default GeneratedComponent;`;
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast.success("Codice copiato negli appunti!");
   };
 
   return (
@@ -275,25 +132,28 @@ export default GeneratedComponent;`;
             <label className="text-sm font-medium mb-2 block">AI Provider</label>
             <Select value={selectedAI} onValueChange={setSelectedAI}>
               <SelectTrigger>
-                <SelectValue placeholder="Seleziona AI" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai">OpenAI GPT-4</SelectItem>
+                <SelectItem value="openai">OpenAI</SelectItem>
                 <SelectItem value="claude">Anthropic Claude</SelectItem>
                 <SelectItem value="gemini">Google Gemini</SelectItem>
-                <SelectItem value="local">Local AI</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <label className="text-sm font-medium mb-2 block">API Key (optional)</label>
-            <Input
-              type="password"
-              placeholder="Inserisci la tua API key..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="text-sm"
-            />
+            <label className="text-sm font-medium mb-2 block">Modello</label>
+            <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gpt-4o-mini">GPT-4 Turbo</SelectItem>
+                <SelectItem value="gpt-4o">GPT-4</SelectItem>
+                <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                <SelectItem value="gemini-pro">Gemini Pro</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
@@ -303,9 +163,9 @@ export default GeneratedComponent;`;
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {message.type === 'ai' && (
+              {message.role === 'assistant' && (
                 <Avatar className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600">
                   <AvatarFallback>
                     <Bot className="w-4 h-4 text-white" />
@@ -314,22 +174,45 @@ export default GeneratedComponent;`;
               )}
               <div
                 className={`max-w-[80%] p-3 rounded-lg ${
-                  message.type === 'user'
+                  message.role === 'user'
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
                     : 'bg-white border shadow-sm'
                 }`}
               >
-                <p className="text-sm">{message.content}</p>
-                <p className={`text-xs mt-1 ${
-                  message.type === 'user' ? 'text-purple-100' : 'text-gray-500'
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                
+                {message.codeBlock && (
+                  <div className="mt-3 p-3 bg-gray-100 rounded border">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Code className="w-4 h-4" />
+                        <span className="text-xs font-medium">Codice Generato</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyCode(message.codeBlock!)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    <pre className="text-xs overflow-x-auto bg-white p-2 rounded border">
+                      <code>{message.codeBlock}</code>
+                    </pre>
+                  </div>
+                )}
+                
+                <p className={`text-xs mt-2 ${
+                  message.role === 'user' ? 'text-purple-100' : 'text-gray-500'
                 }`}>
                   {message.timestamp.toLocaleTimeString()}
-                  {message.aiProvider && message.aiProvider !== 'system' && (
-                    <span className="ml-2">• {message.aiProvider}</span>
+                  {message.provider && (
+                    <span className="ml-2">• {message.provider}</span>
                   )}
                 </p>
               </div>
-              {message.type === 'user' && (
+              {message.role === 'user' && (
                 <Avatar className="w-8 h-8 bg-gradient-to-r from-blue-600 to-cyan-600">
                   <AvatarFallback>
                     <User className="w-4 h-4 text-white" />
@@ -353,22 +236,33 @@ export default GeneratedComponent;`;
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
       <div className="p-4 border-t bg-white">
+        {!user && (
+          <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-800">
+              Accedi per utilizzare l'AI e salvare i tuoi progetti
+            </p>
+          </div>
+        )}
         <div className="flex gap-2">
           <Input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Descrivi cosa vuoi creare... (es: 'crea un button', 'fai una card')"
+            placeholder={user 
+              ? "Descrivi cosa vuoi creare... (es: 'crea un componente login')" 
+              : "Accedi per utilizzare l'AI..."
+            }
             className="flex-1"
-            disabled={isLoading}
+            disabled={isLoading || !user}
           />
           <Button 
             onClick={handleSendMessage} 
-            disabled={!inputValue.trim() || isLoading}
+            disabled={!inputValue.trim() || isLoading || !user}
             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
           >
             <Send className="w-4 h-4" />

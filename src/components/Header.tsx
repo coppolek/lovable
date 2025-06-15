@@ -1,16 +1,30 @@
-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Settings, Github, Share2, Code, Play } from "lucide-react";
+import { Settings, Github, Share2, Code, Play, User, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import AuthModal from "./AuthModal";
+import { useState } from "react";
 
 interface HeaderProps {
   onToggleDevMode: () => void;
   devMode: boolean;
   onShare: () => void;
   onSettings: () => void;
+  currentProject?: { name: string };
 }
 
-const Header = ({ onToggleDevMode, devMode, onShare, onSettings }: HeaderProps) => {
+const Header = ({ onToggleDevMode, devMode, onShare, onSettings, currentProject }: HeaderProps) => {
+  const { user, signOut } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   return (
     <header className="flex items-center justify-between p-4 border-b bg-white/80 backdrop-blur-sm">
       <div className="flex items-center gap-4">
@@ -22,6 +36,12 @@ const Header = ({ onToggleDevMode, devMode, onShare, onSettings }: HeaderProps) 
             Lovable Clone
           </h1>
         </div>
+        {currentProject && (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400">•</span>
+            <span className="font-medium">{currentProject.name}</span>
+          </div>
+        )}
         <Badge variant="secondary" className="text-xs">
           v1.0.0
         </Badge>
@@ -47,7 +67,34 @@ const Header = ({ onToggleDevMode, devMode, onShare, onSettings }: HeaderProps) 
         <Button variant="outline" size="sm" onClick={onSettings}>
           <Settings className="w-4 h-4" />
         </Button>
+        
+        {user ? (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2">
+              <User className="w-4 h-4" />
+              {user.email?.split('@')[0]}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
+        ) : (
+          <Button 
+            variant="default" 
+            size="sm" 
+            onClick={() => setShowAuthModal(true)}
+            className="gap-2"
+          >
+            <User className="w-4 h-4" />
+            Accedi
+          </Button>
+        )}
       </div>
+
+      <AuthModal 
+        open={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
     </header>
   );
 };
