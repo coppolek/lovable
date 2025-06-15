@@ -5,239 +5,259 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Users, UserPlus, Crown, Eye, Edit3, MessageCircle } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { Users, UserPlus, Mail, Globe, Lock, Crown, Eye, Edit, MessageSquare, Share2 } from 'lucide-react';
 import { toast } from "sonner";
-
-interface Collaborator {
-  id: string;
-  user_id: string;
-  role: 'owner' | 'editor' | 'viewer';
-  username: string;
-  joined_at: string;
-  is_online: boolean;
-}
 
 interface CollaborationPanelProps {
   projectId?: string;
-  isOwner: boolean;
+  isOwner?: boolean;
 }
 
 const CollaborationPanel = ({ projectId, isOwner }: CollaborationPanelProps) => {
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('viewer');
-  const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
-
-  // Simulazione collaboratori (in un'app reale verrebbero da Supabase)
-  useEffect(() => {
-    if (projectId && user) {
-      setCollaborators([
-        {
-          id: '1',
-          user_id: user.uid,
-          role: 'owner',
-          username: user.email?.split('@')[0] || 'Owner',
-          joined_at: new Date().toISOString(),
-          is_online: true,
-        }
-      ]);
+  const [collaborators, setCollaborators] = useState([
+    {
+      id: '1',
+      name: 'Mario Rossi',
+      email: 'mario@example.com',
+      role: 'owner',
+      status: 'online',
+      lastSeen: new Date(),
+      avatar: 'MR'
+    },
+    {
+      id: '2', 
+      name: 'Giulia Bianchi',
+      email: 'giulia@example.com',
+      role: 'editor',
+      status: 'away',
+      lastSeen: new Date(Date.now() - 300000),
+      avatar: 'GB'
     }
-  }, [projectId, user]);
+  ]);
+
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState(2);
+  const [comments, setComments] = useState([
+    {
+      id: '1',
+      user: 'Giulia Bianchi',
+      content: 'Ottimo lavoro sul design!',
+      timestamp: new Date(Date.now() - 600000),
+      resolved: false
+    }
+  ]);
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) {
-      toast.error('Inserisci un email valido');
+      toast.error('Inserisci un indirizzo email');
       return;
     }
 
-    setLoading(true);
-    try {
-      // Simulazione invito collaboratore
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newCollaborator: Collaborator = {
-        id: Date.now().toString(),
-        user_id: 'invited-' + Date.now(),
-        role: inviteRole,
-        username: inviteEmail.split('@')[0],
-        joined_at: new Date().toISOString(),
-        is_online: false,
-      };
-
-      setCollaborators(prev => [...prev, newCollaborator]);
-      setInviteEmail('');
+    setIsInviting(true);
+    // Simulate API call
+    setTimeout(() => {
       toast.success(`Invito inviato a ${inviteEmail}`);
-    } catch (error) {
-      toast.error('Errore durante l\'invio dell\'invito');
-    } finally {
-      setLoading(false);
-    }
+      setInviteEmail('');
+      setIsInviting(false);
+    }, 1000);
   };
 
-  const handleRemoveCollaborator = async (collaboratorId: string) => {
-    try {
-      setCollaborators(prev => prev.filter(c => c.id !== collaboratorId));
-      toast.success('Collaboratore rimosso');
-    } catch (error) {
-      toast.error('Errore durante la rimozione');
+  const handleRoleChange = (userId: string, newRole: string) => {
+    setCollaborators(prev => 
+      prev.map(c => c.id === userId ? { ...c, role: newRole } : c)
+    );
+    toast.success('Ruolo aggiornato');
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'online': return 'bg-green-500';
+      case 'away': return 'bg-yellow-500';
+      case 'offline': return 'bg-gray-400';
+      default: return 'bg-gray-400';
     }
   };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'owner': return <Crown className="w-4 h-4 text-yellow-600" />;
-      case 'editor': return <Edit3 className="w-4 h-4 text-blue-600" />;
-      case 'viewer': return <Eye className="w-4 h-4 text-gray-600" />;
+      case 'owner': return <Crown className="w-3 h-3 text-yellow-600" />;
+      case 'editor': return <Edit className="w-3 h-3 text-blue-600" />;
+      case 'viewer': return <Eye className="w-3 h-3 text-gray-600" />;
       default: return null;
     }
   };
 
-  const getRoleBadgeVariant = (role: string) => {
-    switch (role) {
-      case 'owner': return 'default';
-      case 'editor': return 'secondary';
-      case 'viewer': return 'outline';
-      default: return 'outline';
-    }
+  const formatLastSeen = (date: Date) => {
+    const diff = Date.now() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    
+    if (minutes < 1) return 'Ora';
+    if (minutes < 60) return `${minutes}m fa`;
+    if (hours < 24) return `${hours}h fa`;
+    return date.toLocaleDateString('it-IT');
   };
 
-  if (!projectId) {
-    return (
-      <Card>
-        <CardContent className="text-center py-8">
-          <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">Seleziona un progetto per gestire la collaborazione</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Invite Section */}
-      {isOwner && (
+    <div className="h-full flex flex-col bg-gray-50">
+      {/* Header */}
+      <div className="p-4 border-b bg-white">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-purple-600" />
+            <h3 className="font-semibold">Collaborazione</h3>
+          </div>
+          <Badge variant="secondary" className="text-xs">
+            {onlineUsers} online
+          </Badge>
+        </div>
+        
+        {isOwner && (
+          <div className="flex gap-2">
+            <Input
+              placeholder="email@example.com"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              className="text-sm"
+              onKeyPress={(e) => e.key === 'Enter' && handleInvite()}
+            />
+            <Button 
+              onClick={handleInvite}
+              disabled={isInviting}
+              size="sm"
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              <UserPlus className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Project Visibility */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5" />
-              Invita Collaboratori
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Globe className="w-4 h-4" />
+              Visibilità Progetto
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="email@esempio.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="flex-1"
-              />
-              <select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as 'editor' | 'viewer')}
-                className="px-3 py-2 border rounded-md"
-              >
-                <option value="viewer">Visualizzatore</option>
-                <option value="editor">Editor</option>
-              </select>
-              <Button onClick={handleInvite} disabled={loading}>
-                {loading ? 'Invio...' : 'Invita'}
-              </Button>
-            </div>
-            <div className="text-xs text-gray-600">
-              <strong>Editor:</strong> Può modificare il codice e le impostazioni<br />
-              <strong>Visualizzatore:</strong> Può solo visualizzare il progetto
+          <CardContent className="pt-0">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-2 border rounded">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm">Privato</span>
+                </div>
+                <Badge variant="outline" className="text-xs">Attivo</Badge>
+              </div>
+              {isOwner && (
+                <Button variant="outline" size="sm" className="w-full text-xs">
+                  <Share2 className="w-3 h-3 mr-1" />
+                  Condividi pubblicamente
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Collaborators List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Collaboratori ({collaborators.length})
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
+        {/* Collaborators List */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Collaboratori ({collaborators.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-3">
             {collaborators.map((collaborator) => (
-              <div key={collaborator.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
+              <div key={collaborator.id} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
                   <div className="relative">
-                    <Avatar className="w-10 h-10">
-                      <AvatarFallback>
-                        {collaborator.username.charAt(0).toUpperCase()}
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="text-xs">
+                        {collaborator.avatar}
                       </AvatarFallback>
                     </Avatar>
-                    {collaborator.is_online && (
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
-                    )}
+                    <div 
+                      className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(collaborator.status)}`}
+                    />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{collaborator.username}</span>
-                      {collaborator.is_online && (
-                        <Badge variant="outline" className="text-xs">Online</Badge>
-                      )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm font-medium truncate">{collaborator.name}</p>
+                      {getRoleIcon(collaborator.role)}
                     </div>
-                    <div className="text-sm text-gray-600">
-                      Unito il {new Date(collaborator.joined_at).toLocaleDateString('it-IT')}
-                    </div>
+                    <p className="text-xs text-gray-500">
+                      {collaborator.status === 'online' ? 'Online' : formatLastSeen(collaborator.lastSeen)}
+                    </p>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <Badge variant={getRoleBadgeVariant(collaborator.role)} className="gap-1">
-                    {getRoleIcon(collaborator.role)}
-                    {collaborator.role === 'owner' ? 'Proprietario' : 
-                     collaborator.role === 'editor' ? 'Editor' : 'Visualizzatore'}
-                  </Badge>
-                  
-                  {isOwner && collaborator.role !== 'owner' && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveCollaborator(collaborator.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Rimuovi
-                    </Button>
-                  )}
-                </div>
+                
+                {isOwner && collaborator.role !== 'owner' && (
+                  <select
+                    value={collaborator.role}
+                    onChange={(e) => handleRoleChange(collaborator.id, e.target.value)}
+                    className="text-xs border rounded px-2 py-1"
+                  >
+                    <option value="editor">Editor</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                )}
               </div>
             ))}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Real-time Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="w-5 h-5" />
-            Attività Recente
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="text-sm text-gray-600 flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span className="font-medium">{user?.email?.split('@')[0]}</span>
-              ha modificato il codice • 2 minuti fa
-            </div>
-            <div className="text-sm text-gray-600 flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="font-medium">{user?.email?.split('@')[0]}</span>
-              ha creato una nuova versione • 1 ora fa
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Recent Activity */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Attività Recente
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-3">
+            {comments.map((comment) => (
+              <div key={comment.id} className="p-2 bg-gray-50 rounded text-xs">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium">{comment.user}</span>
+                  <span className="text-gray-500">
+                    {formatLastSeen(comment.timestamp)}
+                  </span>
+                </div>
+                <p className="text-gray-700">{comment.content}</p>
+              </div>
+            ))}
+            
+            <Button variant="outline" size="sm" className="w-full text-xs">
+              <MessageSquare className="w-3 h-3 mr-1" />
+              Aggiungi commento
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Permissions */}
+        {isOwner && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Permessi</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span>Modifica codice</span>
+                <Badge variant="outline">Editor</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Gestione versioni</span>
+                <Badge variant="outline">Owner</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Invita membri</span>
+                <Badge variant="outline">Owner</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 };
