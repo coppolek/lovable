@@ -19,32 +19,26 @@ export const useProjects = () => {
   const { user } = useAuth();
 
   const fetchProjects = async () => {
-    if (!user) return;
+    if (!user) {
+      setProjects([]);
+      setLoading(false);
+      return;
+    }
     
     setLoading(true);
     try {
-      // Since we don't have a projects table, we'll simulate with virtual_worlds for now
       const { data, error } = await supabase
-        .from('virtual_worlds')
+        .from('projects')
         .select('*')
-        .eq('creator_id', user.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const mappedProjects: Project[] = data?.map(world => ({
-        id: world.id,
-        name: world.name,
-        description: world.description,
-        created_at: world.created_at,
-        updated_at: world.updated_at,
-        code: JSON.stringify(world.features || []),
-        is_public: world.is_public || false,
-      })) || [];
-
-      setProjects(mappedProjects);
+      setProjects(data || []);
     } catch (error) {
       console.error('Error fetching projects:', error);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
@@ -54,49 +48,33 @@ export const useProjects = () => {
     if (!user) throw new Error('User not authenticated');
 
     const { data, error } = await supabase
-      .from('virtual_worlds')
+      .from('projects')
       .insert({
         name,
         description,
-        creator_id: user.id,
-        category: 'code-project',
-        gradient: 'from-purple-600 to-pink-600',
-        features: [],
-        is_public: false,
+        user_id: user.id,
+        code: `import React from 'react';\n\nconst NewComponent = () => {\n  return (\n    <div className="p-4 bg-gray-100 rounded-lg shadow">\n      <h1 className="text-3xl font-bold text-gray-800">Hello, World!</h1>\n      <p className="mt-2 text-gray-600">This is your new component, ready to be customized.</p>\n      <button className="mt-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors">\n        Click Me!\n      </button>\n    </div>\n  );\n};\n\nexport default NewComponent;\n`,
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    const newProject: Project = {
-      id: data.id,
-      name: data.name,
-      description: data.description,
-      created_at: data.created_at,
-      updated_at: data.updated_at,
-      code: JSON.stringify(data.features || []),
-      is_public: data.is_public || false,
-    };
-
-    setProjects(prev => [newProject, ...prev]);
-    return newProject;
+    setProjects(prev => [data, ...prev]);
+    return data;
   };
 
-  const updateProject = async (id: string, updates: Partial<Project>) => {
+  const updateProject = async (id: string, updates: Partial<Omit<Project, 'id' | 'created_at'>>) => {
     if (!user) throw new Error('User not authenticated');
 
     const { data, error } = await supabase
-      .from('virtual_worlds')
+      .from('projects')
       .update({
-        name: updates.name,
-        description: updates.description,
-        features: updates.code ? JSON.parse(updates.code) : undefined,
-        is_public: updates.is_public,
+        ...updates,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
-      .eq('creator_id', user.id)
+      .eq('user_id', user.id)
       .select()
       .single();
 
@@ -104,7 +82,7 @@ export const useProjects = () => {
 
     setProjects(prev => prev.map(p => 
       p.id === id 
-        ? { ...p, ...updates, updated_at: data.updated_at }
+        ? { ...p, ...data }
         : p
     ));
   };
@@ -113,10 +91,10 @@ export const useProjects = () => {
     if (!user) throw new Error('User not authenticated');
 
     const { error } = await supabase
-      .from('virtual_worlds')
+      .from('projects')
       .delete()
       .eq('id', id)
-      .eq('creator_id', user.id);
+      .eq('user_id', user.id);
 
     if (error) throw error;
 

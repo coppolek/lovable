@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import ChatInterface from "@/components/ChatInterface";
 import CodeEditor from "@/components/CodeEditor";
@@ -9,15 +9,33 @@ import ProjectManager from "@/components/ProjectManager";
 import { useAuth } from "@/hooks/useAuth";
 import { useProjects, Project } from "@/hooks/useProjects";
 import { toast } from "sonner";
+import ProjectTemplates from "@/components/ProjectTemplates";
+import CollaborationPanel from "@/components/CollaborationPanel";
+import AIAssistantPanel from "@/components/AIAssistantPanel";
+import { Brain } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const [devMode, setDevMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [currentCode, setCurrentCode] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
-  const [showProjectManager, setShowProjectManager] = useState(false);
-  const { user } = useAuth();
-  const { updateProject } = useProjects();
+  const [showProjectManager, setShowProjectManager] = useState(true);
+  const { user, loading: authLoading } = useAuth();
+  const { projects, createProject, updateProject, loading: projectsLoading } = useProjects();
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && user && projects.length > 0 && !selectedProject) {
+      // Auto-select the most recent project
+      // handleProjectSelect(projects[0]);
+      setShowProjectManager(true);
+    } else if (!authLoading && !user) {
+      setShowProjectManager(false);
+    }
+  }, [authLoading, user, projects, selectedProject]);
+
 
   const handleToggleDevMode = () => {
     setDevMode(!devMode);
@@ -60,11 +78,39 @@ const Index = () => {
     setSelectedProject(project);
     setCurrentCode(project.code);
     setShowProjectManager(false);
+    setShowTemplates(false);
     toast.success(`Progetto "${project.name}" caricato`);
   };
 
-  // Show project manager if user is logged in but no project is selected
-  const shouldShowProjectManager = user && !selectedProject && !showProjectManager;
+  const handleSelectTemplate = async (template: any) => {
+    if (user) {
+      try {
+        const newProject = await createProject(template.name, template.description);
+        await updateProject(newProject.id, { code: template.code });
+        
+        const updatedProject = { ...newProject, code: template.code };
+        
+        handleProjectSelect(updatedProject);
+        toast.success(`Progetto "${template.name}" creato da template`);
+      } catch (error) {
+        toast.error("Errore nella creazione del progetto da template");
+      }
+    }
+  };
+
+  const handleNewProject = () => {
+    setShowTemplates(true);
+    setShowProjectManager(false);
+  };
+
+  const handleBackToProjects = () => {
+    setSelectedProject(undefined);
+    setCurrentCode('');
+    setShowProjectManager(true);
+  }
+  
+  const isProjectView = user && selectedProject;
+  const showLandingPage = !user && !authLoading;
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -74,24 +120,35 @@ const Index = () => {
         onShare={handleShare}
         onSettings={() => setSettingsOpen(true)}
         currentProject={selectedProject}
+        onLogoClick={handleBackToProjects}
+        currentCode={currentCode}
       />
       
       <div className="flex-1 flex overflow-hidden">
-        {shouldShowProjectManager ? (
+        {showLandingPage ? (
+          <div className="flex-1 flex items-center justify-center">
+             <h1 className="text-4xl font-bold">Benvenuto! Accedi per iniziare.</h1>
+          </div>
+        ) : !isProjectView || showProjectManager ? (
           <div className="flex-1 p-6">
             <ProjectManager 
               onProjectSelect={handleProjectSelect}
               selectedProject={selectedProject}
+              onNewProject={handleNewProject}
+            />
+          </div>
+        ) : showTemplates ? (
+          <div className="flex-1">
+            <ProjectTemplates
+              onSelectTemplate={handleSelectTemplate}
+              onCancel={() => setShowTemplates(false)}
             />
           </div>
         ) : (
           <>
-            {/* Chat Panel */}
             <div className="w-1/3 border-r bg-white">
               <ChatInterface onCodeGenerated={handleCodeGenerated} />
             </div>
-
-            {/* Middle Panel - Code Editor or Preview */}
             <div className="flex-1">
               {devMode ? (
                 <CodeEditor 
@@ -102,16 +159,34 @@ const Index = () => {
                 <PreviewPanel code={currentCode} />
               )}
             </div>
-
-            {/* Right Panel - Preview when in dev mode */}
-            {devMode && (
-              <div className="w-1/2 border-l">
+            <div className="w-1/3 border-l">
+              {devMode ? (
                 <PreviewPanel code={currentCode} />
-              </div>
-            )}
+              ) : showAIAssistant ? (
+                <AIAssistantPanel 
+                  currentCode={currentCode}
+                  onApplySuggestion={(code) => {
+                    setCurrentCode(prev => prev + '\n\n' + code);
+                  }}
+                />
+              ) : (
+                <CollaborationPanel 
+                  projectId={selectedProject?.id}
+                />
+              )}
+            </div>
           </>
         )}
       </div>
+
+      {isProjectView && !showTemplates && (
+        <Button
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg hover:shadow-xl transition-all duration-200"
+          onClick={() => setShowAIAssistant(!showAIAssistant)}
+        >
+          <Brain className="w-6 h-6 text-white" />
+        </Button>
+      )}
 
       <SettingsModal
         open={settingsOpen}

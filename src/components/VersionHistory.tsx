@@ -14,9 +14,10 @@ interface VersionHistoryProps {
   onClose: () => void;
   projectId?: string;
   onRevertToVersion: (code: string) => void;
+  currentCode: string;
 }
 
-const VersionHistory = ({ open, onClose, projectId, onRevertToVersion }: VersionHistoryProps) => {
+const VersionHistory = ({ open, onClose, projectId, onRevertToVersion, currentCode }: VersionHistoryProps) => {
   const { versions, loading, createVersion, revertToVersion } = useProjectVersions(projectId);
   const [newVersionTitle, setNewVersionTitle] = useState('');
   const [showCreateVersion, setShowCreateVersion] = useState(false);
@@ -28,7 +29,7 @@ const VersionHistory = ({ open, onClose, projectId, onRevertToVersion }: Version
     }
 
     try {
-      await createVersion(newVersionTitle, ''); // Il codice corrente dovrebbe essere passato dal componente padre
+      await createVersion(newVersionTitle, currentCode);
       setNewVersionTitle('');
       setShowCreateVersion(false);
       toast.success('Versione creata con successo');
@@ -85,7 +86,7 @@ const VersionHistory = ({ open, onClose, projectId, onRevertToVersion }: Version
                   </Button>
                 </div>
               ) : (
-                <Button onClick={() => setShowCreateVersion(true)}>
+                <Button onClick={() => setShowCreateVersion(true)} disabled={!projectId}>
                   <GitBranch className="w-4 h-4 mr-2" />
                   Crea Snapshot
                 </Button>

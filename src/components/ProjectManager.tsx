@@ -2,47 +2,18 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Plus, FolderOpen, Trash2, Edit, Globe, Lock } from 'lucide-react';
+import { Plus, FolderOpen, Trash2, Globe, Lock } from 'lucide-react';
 import { useProjects, Project } from '@/hooks/useProjects';
 import { toast } from 'sonner';
 
 interface ProjectManagerProps {
   onProjectSelect: (project: Project) => void;
   selectedProject?: Project;
+  onNewProject: () => void;
 }
 
-const ProjectManager = ({ onProjectSelect, selectedProject }: ProjectManagerProps) => {
-  const { projects, loading, createProject, deleteProject } = useProjects();
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectDescription, setNewProjectDescription] = useState('');
-  const [creating, setCreating] = useState(false);
-
-  const handleCreateProject = async () => {
-    if (!newProjectName.trim()) {
-      toast.error('Inserisci un nome per il progetto');
-      return;
-    }
-
-    setCreating(true);
-    try {
-      const project = await createProject(newProjectName, newProjectDescription);
-      toast.success('Progetto creato con successo!');
-      setShowCreateDialog(false);
-      setNewProjectName('');
-      setNewProjectDescription('');
-      onProjectSelect(project);
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setCreating(false);
-    }
-  };
+const ProjectManager = ({ onProjectSelect, selectedProject, onNewProject }: ProjectManagerProps) => {
+  const { projects, loading, deleteProject } = useProjects();
 
   const handleDeleteProject = async (projectId: string) => {
     if (confirm('Sei sicuro di voler eliminare questo progetto?')) {
@@ -67,55 +38,10 @@ const ProjectManager = ({ onProjectSelect, selectedProject }: ProjectManagerProp
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">I tuoi progetti</h2>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Nuovo Progetto
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Crea Nuovo Progetto</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="project-name">Nome Progetto</Label>
-                <Input
-                  id="project-name"
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  placeholder="Il mio progetto fantastico"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="project-description">Descrizione (opzionale)</Label>
-                <Textarea
-                  id="project-description"
-                  value={newProjectDescription}
-                  onChange={(e) => setNewProjectDescription(e.target.value)}
-                  placeholder="Descrivi il tuo progetto..."
-                  rows={3}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleCreateProject} 
-                  disabled={creating}
-                  className="flex-1"
-                >
-                  {creating ? 'Creazione...' : 'Crea Progetto'}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowCreateDialog(false)}
-                >
-                  Annulla
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button className="gap-2" onClick={onNewProject}>
+          <Plus className="w-4 h-4" />
+          Nuovo Progetto
+        </Button>
       </div>
 
       {projects.length === 0 ? (
@@ -125,7 +51,7 @@ const ProjectManager = ({ onProjectSelect, selectedProject }: ProjectManagerProp
           <p className="text-gray-600 mb-4">
             Crea il tuo primo progetto per iniziare a costruire con l'AI
           </p>
-          <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+          <Button onClick={onNewProject} className="gap-2">
             <Plus className="w-4 h-4" />
             Crea il tuo primo progetto
           </Button>
@@ -173,9 +99,6 @@ const ProjectManager = ({ onProjectSelect, selectedProject }: ProjectManagerProp
                   <span>
                     Aggiornato {new Date(project.updated_at).toLocaleDateString()}
                   </span>
-                  <Badge variant={project.is_public ? 'default' : 'secondary'}>
-                    {project.is_public ? 'Pubblico' : 'Privato'}
-                  </Badge>
                 </div>
               </CardContent>
             </Card>

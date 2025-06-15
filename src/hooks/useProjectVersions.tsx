@@ -41,7 +41,7 @@ export const useProjectVersions = (projectId?: string) => {
   const createVersion = async (title: string, code: string) => {
     if (!user || !projectId) throw new Error('User not authenticated or no project');
 
-    const lastVersion = versions[0];
+    const lastVersion = versions.length > 0 ? versions[0] : null;
     const newVersionNumber = lastVersion ? lastVersion.version_number + 1 : 1;
 
     const { data, error } = await supabase
@@ -70,7 +70,11 @@ export const useProjectVersions = (projectId?: string) => {
   };
 
   useEffect(() => {
-    fetchVersions();
+    if (projectId) {
+      fetchVersions();
+    } else {
+      setVersions([]);
+    }
   }, [projectId]);
 
   return {

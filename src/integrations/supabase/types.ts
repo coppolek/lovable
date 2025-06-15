@@ -268,6 +268,77 @@ export type Database = {
         }
         Relationships: []
       }
+      project_versions: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          id: string
+          project_id: string
+          title: string
+          version_number: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          id?: string
+          project_id: string
+          title: string
+          version_number: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          project_id?: string
+          title?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_versions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_posts: {
         Row: {
           created_at: string
