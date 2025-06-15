@@ -30,8 +30,6 @@ const Index = () => {
 
   useEffect(() => {
     if (!authLoading && user && projects.length > 0 && !selectedProject) {
-      // Auto-select the most recent project
-      // handleProjectSelect(projects[0]);
       setShowProjectManager(true);
     } else if (!authLoading && !user) {
       setShowProjectManager(false);
@@ -56,7 +54,6 @@ const Index = () => {
   const handleCodeGenerated = (code: string) => {
     setCurrentCode(code);
     if (selectedProject && user) {
-      // Auto-save the project
       updateProject(selectedProject.id, { code })
         .catch(error => console.error('Error auto-saving project:', error));
     }
@@ -65,7 +62,6 @@ const Index = () => {
   const handleCodeChange = (code: string) => {
     setCurrentCode(code);
     if (selectedProject && user) {
-      // Debounced auto-save
       const timeoutId = setTimeout(() => {
         updateProject(selectedProject.id, { code })
           .catch(error => console.error('Error auto-saving project:', error));
@@ -80,16 +76,20 @@ const Index = () => {
     setCurrentCode(project.code);
     setShowProjectManager(false);
     setShowTemplates(false);
+    setShowDatabaseSelector(false);
     toast.success(`Progetto "${project.name}" caricato`);
   };
 
   const handleSelectTemplate = async (template: any) => {
     if (user) {
       try {
+        console.log('Creating project from template:', template.name);
         const newProject = await createProject(template.name, template.description);
-        await updateProject(newProject.id, { code: template.code });
+        console.log('Project created:', newProject);
         
-        // Create the updated project with the template code
+        await updateProject(newProject.id, { code: template.code });
+        console.log('Template code applied');
+        
         const updatedProject: UnifiedProject = { 
           ...newProject, 
           code: template.code 
@@ -98,18 +98,23 @@ const Index = () => {
         handleProjectSelect(updatedProject);
         toast.success(`Progetto "${template.name}" creato da template`);
       } catch (error) {
+        console.error('Error creating project from template:', error);
         toast.error("Errore nella creazione del progetto da template");
       }
     }
   };
 
   const handleNewProject = () => {
+    console.log('Starting new project flow');
     setShowDatabaseSelector(true);
     setShowProjectManager(false);
+    setShowTemplates(false);
   };
 
   const handleDatabaseSelected = (provider: string) => {
+    console.log('Database selected:', provider);
     setShowDatabaseSelector(false);
+    setShowProjectManager(false);
     setShowTemplates(true);
   };
 
@@ -117,11 +122,37 @@ const Index = () => {
     setSelectedProject(undefined);
     setCurrentCode('');
     setShowProjectManager(true);
-  }
+    setShowTemplates(false);
+    setShowDatabaseSelector(false);
+  };
+
+  const handleCancelDatabaseSelection = () => {
+    console.log('Database selection cancelled');
+    setShowDatabaseSelector(false);
+    setShowProjectManager(true);
+    setShowTemplates(false);
+  };
+
+  const handleCancelTemplateSelection = () => {
+    console.log('Template selection cancelled');
+    setShowTemplates(false);
+    setShowProjectManager(true);
+    setShowDatabaseSelector(false);
+  };
   
   const isOwner = !!(selectedProject && user && selectedProject.user_id === user.uid);
   const isProjectView = user && selectedProject;
   const showLandingPage = !user && !authLoading;
+
+  console.log('Current state:', {
+    showLandingPage,
+    showDatabaseSelector,
+    showProjectManager,
+    showTemplates,
+    isProjectView,
+    user: !!user,
+    authLoading
+  });
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -144,10 +175,14 @@ const Index = () => {
           <div className="flex-1">
             <DatabaseSelector
               onSelect={handleDatabaseSelected}
-              onCancel={() => {
-                setShowDatabaseSelector(false);
-                setShowProjectManager(true);
-              }}
+              onCancel={handleCancelDatabaseSelection}
+            />
+          </div>
+        ) : showTemplates ? (
+          <div className="flex-1">
+            <ProjectTemplates
+              onSelectTemplate={handleSelectTemplate}
+              onCancel={handleCancelTemplateSelection}
             />
           </div>
         ) : !isProjectView || showProjectManager ? (
@@ -156,13 +191,6 @@ const Index = () => {
               onProjectSelect={handleProjectSelect}
               selectedProject={selectedProject}
               onNewProject={handleNewProject}
-            />
-          </div>
-        ) : showTemplates ? (
-          <div className="flex-1">
-            <ProjectTemplates
-              onSelectTemplate={handleSelectTemplate}
-              onCancel={() => setShowTemplates(false)}
             />
           </div>
         ) : (
@@ -201,7 +229,7 @@ const Index = () => {
         )}
       </div>
 
-      {isProjectView && !showTemplates && (
+      {isProjectView && !showTemplates && !showDatabaseSelector && (
         <Button
           className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg hover:shadow-xl transition-all duration-200"
           onClick={() => setShowAIAssistant(!showAIAssistant)}
