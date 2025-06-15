@@ -6,24 +6,26 @@ import PreviewPanel from "@/components/PreviewPanel";
 import SettingsModal from "@/components/SettingsModal";
 import ProjectManager from "@/components/ProjectManager";
 import { useAuth } from "@/hooks/useAuth";
-import { useProjects, Project } from "@/hooks/useProjects";
+import { useUnifiedProjects, UnifiedProject } from "@/hooks/useUnifiedProjects";
 import { toast } from "sonner";
 import ProjectTemplates from "@/components/ProjectTemplates";
 import CollaborationPanel from "@/components/CollaborationPanel";
 import AIAssistantPanel from "@/components/AIAssistantPanel";
 import { Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import DatabaseSelector from "@/components/DatabaseSelector";
 
 const Index = () => {
   const [devMode, setDevMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [currentCode, setCurrentCode] = useState('');
-  const [selectedProject, setSelectedProject] = useState<Project | undefined>();
+  const [selectedProject, setSelectedProject] = useState<UnifiedProject | undefined>();
   const [showProjectManager, setShowProjectManager] = useState(true);
   const { user, loading: authLoading } = useAuth();
-  const { projects, createProject, updateProject, loading: projectsLoading } = useProjects();
+  const { projects, createProject, updateProject, loading: projectsLoading } = useUnifiedProjects();
   const [showTemplates, setShowTemplates] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [showDatabaseSelector, setShowDatabaseSelector] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user && projects.length > 0 && !selectedProject) {
@@ -73,7 +75,7 @@ const Index = () => {
     }
   };
 
-  const handleProjectSelect = (project: Project) => {
+  const handleProjectSelect = (project: UnifiedProject) => {
     setSelectedProject(project);
     setCurrentCode(project.code);
     setShowProjectManager(false);
@@ -98,8 +100,13 @@ const Index = () => {
   };
 
   const handleNewProject = () => {
-    setShowTemplates(true);
+    setShowDatabaseSelector(true);
     setShowProjectManager(false);
+  };
+
+  const handleDatabaseSelected = (provider: string) => {
+    setShowDatabaseSelector(false);
+    setShowTemplates(true);
   };
 
   const handleBackToProjects = () => {
@@ -128,6 +135,16 @@ const Index = () => {
         {showLandingPage ? (
           <div className="flex-1 flex items-center justify-center">
              <h1 className="text-4xl font-bold">Benvenuto! Accedi per iniziare.</h1>
+          </div>
+        ) : showDatabaseSelector ? (
+          <div className="flex-1">
+            <DatabaseSelector
+              onSelect={handleDatabaseSelected}
+              onCancel={() => {
+                setShowDatabaseSelector(false);
+                setShowProjectManager(true);
+              }}
+            />
           </div>
         ) : !isProjectView || showProjectManager ? (
           <div className="flex-1 p-6">
