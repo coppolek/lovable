@@ -89,6 +89,7 @@ const Index = () => {
         const newProject = await createProject(template.name, template.description);
         await updateProject(newProject.id, { code: template.code });
         
+        // Create the updated project with the template code
         const updatedProject: UnifiedProject = { 
           ...newProject, 
           code: template.code 
