@@ -2,19 +2,18 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, FolderOpen, Trash2, Globe, Lock, Database, Cloud } from 'lucide-react';
-import { useUnifiedProjects, UnifiedProject } from '@/hooks/useUnifiedProjects';
+import { Plus, FolderOpen, Trash2, Globe, Lock, Database, ExternalLink } from 'lucide-react';
+import { useSupabaseProjects, SupabaseProject } from '@/hooks/useSupabaseProjects';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
 
 interface ProjectManagerProps {
-  onProjectSelect: (project: UnifiedProject) => void;
-  selectedProject?: UnifiedProject;
+  onProjectSelect: (project: SupabaseProject) => void;
+  selectedProject?: SupabaseProject;
   onNewProject: () => void;
 }
 
 const ProjectManager = ({ onProjectSelect, selectedProject, onNewProject }: ProjectManagerProps) => {
-  const { projects, loading, deleteProject, provider } = useUnifiedProjects();
+  const { projects, loading, deleteProject } = useSupabaseProjects();
 
   const handleDeleteProject = async (projectId: string) => {
     if (confirm('Sei sicuro di voler eliminare questo progetto?')) {
@@ -27,12 +26,9 @@ const ProjectManager = ({ onProjectSelect, selectedProject, onNewProject }: Proj
     }
   };
 
-  const getProviderIcon = (projectProvider: string) => {
-    return projectProvider === 'firebase' ? Cloud : Database;
-  };
-
-  const getProviderColor = (projectProvider: string) => {
-    return projectProvider === 'firebase' ? 'text-orange-600' : 'text-green-600';
+  const handleConnectToSupabase = () => {
+    window.open('https://supabase.com/dashboard', '_blank');
+    toast.success('Apertura dashboard Supabase');
   };
 
   if (loading) {
@@ -43,22 +39,30 @@ const ProjectManager = ({ onProjectSelect, selectedProject, onNewProject }: Proj
     );
   }
 
-  const HeaderProviderIcon = getProviderIcon(provider);
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-semibold">I tuoi progetti</h2>
-          <Badge variant="outline" className="gap-1">
-            <HeaderProviderIcon className="w-3 h-3" />
-            {provider === 'firebase' ? 'Firebase' : 'Supabase'}
-          </Badge>
+          <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-sm">
+            <Database className="w-3 h-3" />
+            Supabase
+          </div>
         </div>
-        <Button className="gap-2" onClick={onNewProject}>
-          <Plus className="w-4 h-4" />
-          Nuovo Progetto
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            className="gap-2" 
+            onClick={handleConnectToSupabase}
+          >
+            <ExternalLink className="w-4 h-4" />
+            Connetti a Supabase
+          </Button>
+          <Button className="gap-2" onClick={onNewProject}>
+            <Plus className="w-4 h-4" />
+            Nuovo Progetto
+          </Button>
+        </div>
       </div>
 
       {projects.length === 0 ? (
@@ -76,7 +80,6 @@ const ProjectManager = ({ onProjectSelect, selectedProject, onNewProject }: Proj
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => {
-            const ProviderIcon = getProviderIcon(project.provider);
             const formatDate = (date: string | Date) => {
               if (date instanceof Date) {
                 return date.toLocaleDateString();
@@ -97,7 +100,7 @@ const ProjectManager = ({ onProjectSelect, selectedProject, onNewProject }: Proj
                     <div className="flex-1">
                       <CardTitle className="text-lg flex items-center gap-2">
                         {project.name}
-                        <ProviderIcon className={`w-4 h-4 ${getProviderColor(project.provider)}`} />
+                        <Database className="w-4 h-4 text-green-600" />
                       </CardTitle>
                       <CardDescription className="mt-1">
                         {project.description || 'Nessuna descrizione'}

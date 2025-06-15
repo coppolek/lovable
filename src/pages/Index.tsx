@@ -7,26 +7,24 @@ import PreviewPanel from "@/components/PreviewPanel";
 import SettingsModal from "@/components/SettingsModal";
 import ProjectManager from "@/components/ProjectManager";
 import { useAuth } from "@/hooks/useAuth";
-import { useUnifiedProjects, UnifiedProject } from "@/hooks/useUnifiedProjects";
+import { useSupabaseProjects, SupabaseProject } from "@/hooks/useSupabaseProjects";
 import { toast } from "sonner";
 import ProjectTemplates from "@/components/ProjectTemplates";
 import CollaborationPanel from "@/components/CollaborationPanel";
 import AIAssistantPanel from "@/components/AIAssistantPanel";
 import { Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import DatabaseSelector from "@/components/DatabaseSelector";
 
 const Index = () => {
   const [devMode, setDevMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [currentCode, setCurrentCode] = useState('');
-  const [selectedProject, setSelectedProject] = useState<UnifiedProject | undefined>();
+  const [selectedProject, setSelectedProject] = useState<SupabaseProject | undefined>();
   const [showProjectManager, setShowProjectManager] = useState(true);
   const { user, loading: authLoading } = useAuth();
-  const { projects, createProject, updateProject, loading: projectsLoading } = useUnifiedProjects();
+  const { projects, createProject, updateProject, loading: projectsLoading } = useSupabaseProjects();
   const [showTemplates, setShowTemplates] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
-  const [showDatabaseSelector, setShowDatabaseSelector] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user && projects.length > 0 && !selectedProject) {
@@ -71,12 +69,11 @@ const Index = () => {
     }
   };
 
-  const handleProjectSelect = (project: UnifiedProject) => {
+  const handleProjectSelect = (project: SupabaseProject) => {
     setSelectedProject(project);
     setCurrentCode(project.code);
     setShowProjectManager(false);
     setShowTemplates(false);
-    setShowDatabaseSelector(false);
     toast.success(`Progetto "${project.name}" caricato`);
   };
 
@@ -90,7 +87,7 @@ const Index = () => {
         await updateProject(newProject.id, { code: template.code });
         console.log('Template code applied');
         
-        const updatedProject: UnifiedProject = { 
+        const updatedProject: SupabaseProject = { 
           ...newProject, 
           code: template.code 
         };
@@ -106,29 +103,13 @@ const Index = () => {
 
   const handleNewProject = () => {
     console.log('Starting new project flow');
-    setShowDatabaseSelector(true);
-    setShowProjectManager(false);
-    setShowTemplates(false);
-  };
-
-  const handleDatabaseSelected = (provider: string) => {
-    console.log('Database selected:', provider);
-    setShowDatabaseSelector(false);
-    setShowProjectManager(false);
     setShowTemplates(true);
+    setShowProjectManager(false);
   };
 
   const handleBackToProjects = () => {
     setSelectedProject(undefined);
     setCurrentCode('');
-    setShowProjectManager(true);
-    setShowTemplates(false);
-    setShowDatabaseSelector(false);
-  };
-
-  const handleCancelDatabaseSelection = () => {
-    console.log('Database selection cancelled');
-    setShowDatabaseSelector(false);
     setShowProjectManager(true);
     setShowTemplates(false);
   };
@@ -137,7 +118,6 @@ const Index = () => {
     console.log('Template selection cancelled');
     setShowTemplates(false);
     setShowProjectManager(true);
-    setShowDatabaseSelector(false);
   };
   
   const isOwner = !!(selectedProject && user && selectedProject.user_id === user.uid);
@@ -146,7 +126,6 @@ const Index = () => {
 
   console.log('Current state:', {
     showLandingPage,
-    showDatabaseSelector,
     showProjectManager,
     showTemplates,
     isProjectView,
@@ -170,13 +149,6 @@ const Index = () => {
         {showLandingPage ? (
           <div className="flex-1 flex items-center justify-center">
              <h1 className="text-4xl font-bold">Benvenuto! Accedi per iniziare.</h1>
-          </div>
-        ) : showDatabaseSelector ? (
-          <div className="flex-1">
-            <DatabaseSelector
-              onSelect={handleDatabaseSelected}
-              onCancel={handleCancelDatabaseSelection}
-            />
           </div>
         ) : showTemplates ? (
           <div className="flex-1">
@@ -229,7 +201,7 @@ const Index = () => {
         )}
       </div>
 
-      {isProjectView && !showTemplates && !showDatabaseSelector && (
+      {isProjectView && !showTemplates && (
         <Button
           className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg hover:shadow-xl transition-all duration-200"
           onClick={() => setShowAIAssistant(!showAIAssistant)}

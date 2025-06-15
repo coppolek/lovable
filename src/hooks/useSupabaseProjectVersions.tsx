@@ -1,30 +1,20 @@
 
 import { useState, useEffect } from 'react';
-import { db } from '@/integrations/firebase/client';
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  getDocs, 
-  addDoc,
-  serverTimestamp,
-  Timestamp 
-} from 'firebase/firestore';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
-export interface ProjectVersion {
+export interface SupabaseProjectVersion {
   id: string;
   project_id: string;
   version_number: number;
   title: string;
   code: string;
-  created_at: Timestamp;
+  created_at: string;
   created_by: string;
 }
 
-export const useProjectVersions = (projectId?: string) => {
-  const [versions, setVersions] = useState<ProjectVersion[]>([]);
+export const useSupabaseProjectVersions = (projectId?: string) => {
+  const [versions, setVersions] = useState<SupabaseProjectVersion[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
@@ -33,17 +23,14 @@ export const useProjectVersions = (projectId?: string) => {
     
     setLoading(true);
     try {
-      const q = query(
-        collection(db, 'project_versions'),
-        where('project_id', '==', projectId),
-        orderBy('version_number', 'desc')
-      );
-      const querySnapshot = await getDocs(q);
-      const projectVersions = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      } as ProjectVersion));
-      setVersions(projectVersions);
+      const { data, error } = await supabase
+        .from('project_versions')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('version_number', { ascending: false });
+
+      if (error) throw error;
+      setVersions(data || []);
     } catch (error) {
       console.error('Error fetching versions:', error);
     } finally {
@@ -57,23 +44,21 @@ export const useProjectVersions = (projectId?: string) => {
     const lastVersion = versions.length > 0 ? versions[0] : null;
     const newVersionNumber = lastVersion ? lastVersion.version_number + 1 : 1;
 
-    const newVersionData = {
-      project_id: projectId,
-      version_number: newVersionNumber,
-      title,
-      code,
-      created_by: user.uid,
-      created_at: serverTimestamp(),
-    };
+    const { data, error } = await supabase
+      .from('project_versions')
+      .insert([{
+        project_id: projectId,
+        version_number: newVersionNumber,
+        title,
+        code,
+        created_by: user.uid,
+      }])
+      .select()
+      .single();
 
-    const docRef = await addDoc(collection(db, 'project_versions'), newVersionData);
-    
-    const newVersion: ProjectVersion = {
-      id: docRef.id,
-      ...newVersionData,
-      created_at: Timestamp.now(),
-    };
+    if (error) throw error;
 
+    const newVersion: SupabaseProjectVersion = data;
     setVersions(prev => [newVersion, ...prev]);
     return newVersion;
   };

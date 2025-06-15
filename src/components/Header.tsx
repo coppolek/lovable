@@ -15,16 +15,14 @@ import {
 import VersionHistory from "./VersionHistory";
 import ProjectExport from "./ProjectExport";
 import AdvancedSettings from "./AdvancedSettings";
-import { UnifiedProject } from "@/hooks/useUnifiedProjects";
-import { Project } from "@/hooks/useProjects";
-import { Timestamp } from 'firebase/firestore';
+import { SupabaseProject } from "@/hooks/useSupabaseProjects";
 
 interface HeaderProps {
   onToggleDevMode: () => void;
   devMode: boolean;
   onShare: () => void;
   onSettings: () => void;
-  currentProject?: UnifiedProject;
+  currentProject?: SupabaseProject;
   onLogoClick: () => void;
   currentCode: string;
 }
@@ -44,19 +42,6 @@ const Header = ({ onToggleDevMode, devMode, onShare, onSettings, currentProject,
       console.error('Error signing out:', error);
     }
   };
-
-  const projectForExport: Project | undefined = currentProject && currentProject.provider === 'firebase'
-    ? {
-        id: currentProject.id,
-        name: currentProject.name,
-        description: currentProject.description,
-        code: currentProject.code,
-        is_public: currentProject.is_public,
-        user_id: currentProject.user_id,
-        created_at: Timestamp.fromDate(new Date(currentProject.created_at)),
-        updated_at: Timestamp.fromDate(new Date(currentProject.updated_at)),
-      }
-    : undefined;
 
   return (
     <>
@@ -110,7 +95,6 @@ const Header = ({ onToggleDevMode, devMode, onShare, onSettings, currentProject,
                 size="sm"
                 onClick={() => setShowExport(true)}
                 className="gap-2"
-                disabled={!projectForExport}
               >
                 <Download className="w-4 h-4" />
                 Export
@@ -202,7 +186,7 @@ const Header = ({ onToggleDevMode, devMode, onShare, onSettings, currentProject,
       <ProjectExport
         open={showExport}
         onClose={() => setShowExport(false)}
-        project={projectForExport}
+        project={currentProject}
       />
       
       <AdvancedSettings
