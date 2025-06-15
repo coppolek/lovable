@@ -11,6 +11,7 @@ export interface Project {
   updated_at: string;
   code: string;
   is_public: boolean;
+  user_id: string;
 }
 
 export const useProjects = () => {

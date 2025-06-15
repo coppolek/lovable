@@ -109,6 +109,7 @@ const Index = () => {
     setShowProjectManager(true);
   }
   
+  const isOwner = !!(selectedProject && user && selectedProject.user_id === user.id);
   const isProjectView = user && selectedProject;
   const showLandingPage = !user && !authLoading;
 
@@ -172,6 +173,7 @@ const Index = () => {
               ) : (
                 <CollaborationPanel 
                   projectId={selectedProject?.id}
+                  isOwner={isOwner}
                 />
               )}
             </div>
