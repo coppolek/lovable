@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -5,9 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Clock, GitBranch, Download, RotateCcw } from "lucide-react";
-import { useProjectVersions, ProjectVersion } from "@/hooks/useProjectVersions";
+import { useSupabaseProjectVersions, SupabaseProjectVersion } from "@/hooks/useSupabaseProjectVersions";
 import { toast } from "sonner";
-import { Timestamp } from 'firebase/firestore';
 
 interface VersionHistoryProps {
   open: boolean;
@@ -18,7 +18,7 @@ interface VersionHistoryProps {
 }
 
 const VersionHistory = ({ open, onClose, projectId, onRevertToVersion, currentCode }: VersionHistoryProps) => {
-  const { versions, loading, createVersion, revertToVersion } = useProjectVersions(projectId);
+  const { versions, loading, createVersion, revertToVersion } = useSupabaseProjectVersions(projectId);
   const [newVersionTitle, setNewVersionTitle] = useState('');
   const [showCreateVersion, setShowCreateVersion] = useState(false);
 
@@ -38,7 +38,7 @@ const VersionHistory = ({ open, onClose, projectId, onRevertToVersion, currentCo
     }
   };
 
-  const handleRevert = async (version: ProjectVersion) => {
+  const handleRevert = async (version: SupabaseProjectVersion) => {
     try {
       const code = await revertToVersion(version.id);
       onRevertToVersion(code);
@@ -49,9 +49,9 @@ const VersionHistory = ({ open, onClose, projectId, onRevertToVersion, currentCo
     }
   };
 
-  const formatDate = (timestamp: Timestamp) => {
-    if (!timestamp) return '';
-    return timestamp.toDate().toLocaleString('it-IT');
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleString('it-IT');
   };
 
   return (

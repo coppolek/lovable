@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,12 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Download, Upload, FileCode, Package, Github, Globe } from "lucide-react";
 import { toast } from "sonner";
-import { Project } from "@/hooks/useProjects";
+import { SupabaseProject } from "@/hooks/useSupabaseProjects";
 
 interface ProjectExportProps {
   open: boolean;
   onClose: () => void;
-  project?: Project;
+  project?: SupabaseProject;
   onImportProject?: (projectData: any) => void;
 }
 
