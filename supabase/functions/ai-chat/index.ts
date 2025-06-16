@@ -33,7 +33,8 @@ serve(async (req) => {
     console.log('Final API keys:', {
       hasGemini: !!geminiApiKey,
       hasOpenAI: !!openAIApiKey,
-      hasClaude: !!claudeApiKey
+      hasClaude: !!claudeApiKey,
+      geminiKeyPreview: geminiApiKey ? `${geminiApiKey.substring(0, 10)}...` : 'none'
     });
 
     const systemMessage = {
@@ -64,7 +65,21 @@ When generating components, make them:
         console.error('Gemini API key not found');
         return new Response(
           JSON.stringify({ 
-            error: 'API key Gemini non configurata. Vai nelle Impostazioni e clicca su "Ottieni API Key Gratuita" per configurare Gemini Flash.' 
+            error: 'API key Gemini non configurata. Vai nelle Impostazioni e clicca su "Ottieni API Key Gratuita" per configurare Gemini Flash. Assicurati di copiare correttamente la chiave da https://makersuite.google.com/app/apikey' 
+          }), 
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      // Validate API key format
+      if (!geminiApiKey.startsWith('AI') || geminiApiKey.length < 30) {
+        console.error('Invalid Gemini API key format');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Formato API key Gemini non valido. La chiave deve iniziare con "AI" e essere lunga almeno 30 caratteri. Verifica di aver copiato correttamente la chiave da Google AI Studio.' 
           }), 
           { 
             status: 400, 
@@ -96,10 +111,30 @@ When generating components, make them:
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 2000,
-        }
+          topP: 0.8,
+          topK: 40
+        },
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          }
+        ]
       };
 
-      console.log('Gemini request body:', JSON.stringify(geminiRequestBody, null, 2));
+      console.log('Gemini request URL:', geminiUrl.replace(geminiApiKey, 'API_KEY_HIDDEN'));
 
       const response = await fetch(geminiUrl, {
         method: 'POST',
@@ -120,15 +155,27 @@ When generating components, make them:
         let errorMessage = 'Errore nella comunicazione con Gemini';
         
         if (data.error?.message) {
-          if (data.error.message.includes('API_KEY_INVALID') || data.error.message.includes('invalid API key')) {
-            errorMessage = 'API key Gemini non valida. Verifica che sia corretta nelle impostazioni. Vai su https://makersuite.google.com/app/apikey per ottenerne una nuova.';
-          } else if (data.error.message.includes('QUOTA_EXCEEDED')) {
-            errorMessage = 'Quota Gemini superata. Riprova più tardi o verifica i limiti del tuo account.';
-          } else if (data.error.message.includes('PERMISSION_DENIED')) {
-            errorMessage = 'Permesso negato. Verifica che la tua API key Gemini abbia i permessi corretti.';
+          const errorMsg = data.error.message.toLowerCase();
+          
+          if (errorMsg.includes('api_key_invalid') || errorMsg.includes('invalid api key') || errorMsg.includes('api key not valid')) {
+            errorMessage = 'API key Gemini non valida. Verifica che sia corretta nelle impostazioni. Vai su https://makersuite.google.com/app/apikey per ottenerne una nuova e assicurati di copiarla completamente.';
+          } else if (errorMsg.includes('quota_exceeded') || errorMsg.includes('quota exceeded')) {
+            errorMessage = 'Quota Gemini superata. Hai raggiunto il limite gratuito. Riprova più tardi o verifica i limiti del tuo account su Google AI Studio.';
+          } else if (errorMsg.includes('permission_denied') || errorMsg.includes('permission denied')) {
+            errorMessage = 'Permesso negato. Verifica che la tua API key Gemini abbia i permessi corretti e che il servizio Generative AI sia abilitato nel tuo progetto Google Cloud.';
+          } else if (errorMsg.includes('model not found') || errorMsg.includes('model_not_found')) {
+            errorMessage = `Modello ${model} non trovato. Prova con "gemini-1.5-flash" o "gemini-1.5-pro".`;
+          } else if (errorMsg.includes('blocked') || errorMsg.includes('safety')) {
+            errorMessage = 'Richiesta bloccata dai filtri di sicurezza di Gemini. Prova a riformulare la tua richiesta.';
           } else {
             errorMessage = `Errore Gemini: ${data.error.message}`;
           }
+        } else if (response.status === 403) {
+          errorMessage = 'Accesso negato. Verifica che la tua API key Gemini sia valida e abbia i permessi necessari.';
+        } else if (response.status === 429) {
+          errorMessage = 'Troppe richieste. Hai superato il limite di rate di Gemini. Riprova tra qualche secondo.';
+        } else if (response.status === 400) {
+          errorMessage = 'Richiesta non valida. Verifica la configurazione della tua API key Gemini.';
         }
         
         return new Response(
@@ -140,8 +187,34 @@ When generating components, make them:
         );
       }
 
+      // Check if response has content
+      if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+        console.error('No content in Gemini response:', data);
+        
+        let errorMessage = 'Gemini non ha generato una risposta';
+        
+        if (data.candidates && data.candidates[0] && data.candidates[0].finishReason) {
+          const finishReason = data.candidates[0].finishReason;
+          if (finishReason === 'SAFETY') {
+            errorMessage = 'Risposta bloccata dai filtri di sicurezza di Gemini. Prova a riformulare la tua richiesta in modo più specifico.';
+          } else if (finishReason === 'MAX_TOKENS') {
+            errorMessage = 'Risposta troppo lunga. Prova a fare una richiesta più specifica.';
+          } else {
+            errorMessage = `Gemini ha terminato la generazione: ${finishReason}`;
+          }
+        }
+        
+        return new Response(
+          JSON.stringify({ error: errorMessage }), 
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
       // Convert Gemini response to OpenAI format for compatibility
-      const content = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
+      const content = data.candidates[0].content.parts[0].text || 'No response generated';
       
       console.log('Generated content length:', content.length);
       console.log('Generated content preview:', content.substring(0, 200) + '...');
@@ -237,9 +310,17 @@ When generating components, make them:
     console.error('Error message:', error.message);
     console.error('Error stack:', error.stack);
     
+    let errorMessage = `Errore interno del server: ${error.message}`;
+    
+    if (error.message.includes('fetch')) {
+      errorMessage = 'Errore di connessione. Verifica la tua connessione internet e riprova.';
+    } else if (error.message.includes('JSON')) {
+      errorMessage = 'Errore nel formato della risposta. Riprova tra qualche secondo.';
+    }
+    
     return new Response(
       JSON.stringify({ 
-        error: `Errore interno del server: ${error.message}. Verifica la configurazione delle API keys nelle impostazioni.` 
+        error: `${errorMessage} Verifica la configurazione delle API keys nelle impostazioni.` 
       }), 
       {
         status: 500,
