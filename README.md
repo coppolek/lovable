@@ -1,73 +1,170 @@
-# Welcome to your Lovable project
+# PHP Content Management System
 
-## Project info
+A modern, secure PHP web application with preview functionality, built following best practices and security standards.
 
-**URL**: https://lovable.dev/projects/e5f714d9-3b57-46f2-808d-af24ea1e391e
+## Features
 
-## How can I edit this code?
+### Core Functionality
+- **Content Management**: Full CRUD operations for content with rich text editing
+- **Preview System**: Real-time preview functionality before publishing
+- **User Authentication**: Secure login system with role-based access control
+- **Version Control**: Content revision history and rollback capabilities
+- **File Upload**: Secure file upload with validation and preview
 
-There are several ways of editing your application.
+### Security Features
+- **XSS Protection**: Input sanitization and output encoding
+- **CSRF Protection**: Token-based CSRF protection for all forms
+- **SQL Injection Prevention**: Prepared statements for all database queries
+- **Session Security**: Secure session management with timeout
+- **Rate Limiting**: Protection against brute force attacks
+- **Input Validation**: Comprehensive server-side validation
 
-**Use Lovable**
+### User Interface
+- **Responsive Design**: Mobile-first responsive layout
+- **Real-time Preview**: AJAX-powered live preview functionality
+- **Intuitive Navigation**: Clean and user-friendly interface
+- **Visual Feedback**: Loading states, notifications, and confirmations
+- **Auto-save**: Automatic draft saving functionality
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/e5f714d9-3b57-46f2-808d-af24ea1e391e) and start prompting.
+## Installation
 
-Changes made via Lovable will be committed automatically to this repo.
+1. **Clone or download** the project files to your web server
+2. **Configure database** settings in `config/app.php`
+3. **Create database** named `cms_db` (or update the name in config)
+4. **Set permissions** for the `public/uploads/` directory (755)
+5. **Access the application** in your web browser
 
-**Use your preferred IDE**
+## Default Credentials
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Username**: admin
+- **Password**: admin123
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Project Structure
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+├── config/
+│   ├── app.php              # Application configuration
+│   └── database.php         # Database connection and setup
+├── controllers/
+│   ├── AuthController.php   # Authentication handling
+│   ├── ContentController.php # Content management
+│   ├── DashboardController.php # Dashboard functionality
+│   └── PreviewController.php # Preview system
+├── models/
+│   ├── Content.php          # Content model
+│   └── User.php             # User model
+├── views/
+│   ├── layout/              # Layout templates
+│   ├── auth/                # Authentication views
+│   ├── dashboard/           # Dashboard views
+│   ├── content/             # Content management views
+│   ├── preview/             # Preview views
+│   └── errors/              # Error pages
+├── includes/
+│   ├── auth.php             # Authentication functions
+│   └── security.php         # Security utilities
+├── public/
+│   ├── css/                 # Stylesheets
+│   ├── js/                  # JavaScript files
+│   └── uploads/             # File uploads directory
+└── index.php                # Main entry point
 ```
 
-**Edit a file directly in GitHub**
+## Database Schema
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+The application automatically creates the following tables:
 
-**Use GitHub Codespaces**
+- **users**: User accounts with role-based access
+- **content**: Main content storage with versioning
+- **content_revisions**: Content revision history
+- **activity_log**: User activity tracking
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Security Features
 
-## What technologies are used for this project?
+### Input Sanitization
+All user inputs are sanitized using `htmlspecialchars()` and validated before processing.
 
-This project is built with:
+### CSRF Protection
+Every form includes a CSRF token that is validated on submission.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### SQL Injection Prevention
+All database queries use prepared statements with parameter binding.
 
-## How can I deploy this project?
+### Session Security
+Sessions are configured with secure settings including:
+- HTTP-only cookies
+- Secure flag for HTTPS
+- SameSite protection
+- Session timeout
 
-Simply open [Lovable](https://lovable.dev/projects/e5f714d9-3b57-46f2-808d-af24ea1e391e) and click on Share -> Publish.
+### File Upload Security
+File uploads are validated for:
+- File type restrictions
+- Size limitations
+- Secure file naming
+- Directory traversal prevention
 
-## Can I connect a custom domain to my Lovable project?
+## User Roles
 
-Yes, you can!
+- **Admin**: Full system access, user management
+- **Editor**: Content creation, editing, and publishing
+- **Viewer**: Read-only access to content
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## API Endpoints
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Preview System
+- `POST /preview/ajax` - Generate real-time preview
+- `POST /preview/save_draft` - Auto-save draft content
+
+### Content Management
+- `GET /content` - List all content
+- `POST /content/create` - Create new content
+- `POST /content/edit/{id}` - Update existing content
+- `POST /content/delete/{id}` - Delete content
+- `POST /content/publish/{id}` - Publish content
+
+## Configuration
+
+### Database Settings
+Update `config/app.php` with your database credentials:
+
+```php
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'cms_db');
+define('DB_USER', 'your_username');
+define('DB_PASS', 'your_password');
+```
+
+### File Upload Settings
+Configure upload limits in `config/app.php`:
+
+```php
+define('UPLOAD_PATH', 'public/uploads/');
+define('MAX_FILE_SIZE', 5242880); // 5MB
+```
+
+### Security Settings
+Adjust security parameters:
+
+```php
+define('SESSION_TIMEOUT', 3600); // 1 hour
+define('CSRF_TOKEN_NAME', 'csrf_token');
+```
+
+## Browser Support
+
+- Chrome 60+
+- Firefox 55+
+- Safari 12+
+- Edge 79+
+
+## Requirements
+
+- PHP 7.4 or higher
+- MySQL 5.7 or higher
+- Web server (Apache/Nginx)
+- PDO MySQL extension
+
+## License
+
+This project is open source and available under the MIT License.
