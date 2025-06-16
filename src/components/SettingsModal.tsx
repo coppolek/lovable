@@ -8,9 +8,10 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ExternalLink, Key, CheckCircle, Copy, Eye, EyeOff } from "lucide-react";
+import { ExternalLink, Key, CheckCircle, Copy, Eye, EyeOff, Database } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import DatabaseSettings from "./DatabaseSettings";
 
 interface SettingsModalProps {
   open: boolean;
@@ -115,14 +116,15 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Impostazioni</DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="ai" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="ai">AI APIs</TabsTrigger>
+            <TabsTrigger value="database">Database</TabsTrigger>
             <TabsTrigger value="editor">Editor</TabsTrigger>
             <TabsTrigger value="general">Generale</TabsTrigger>
             <TabsTrigger value="about">Info</TabsTrigger>
@@ -397,6 +399,10 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
             </Card>
           </TabsContent>
 
+          <TabsContent value="database" className="space-y-4">
+            <DatabaseSettings />
+          </TabsContent>
+
           <TabsContent value="editor" className="space-y-4">
             <Card>
               <CardHeader>
@@ -489,6 +495,7 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
                     <li>• Editor di codice integrato</li>
                     <li>• Preview live dei componenti</li>
                     <li>• Supporto per Gemini Flash (gratuito), OpenAI, Claude</li>
+                    <li>• Supporto per database Supabase e MySQL</li>
                     <li>• Design responsive</li>
                     <li>• Animazioni fluide</li>
                   </ul>
@@ -500,9 +507,9 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
                   </p>
                 </div>
                 <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <h4 className="font-medium text-green-800 mb-1">🎉 Novità: Gemini Flash Gratuito!</h4>
+                  <h4 className="font-medium text-green-800 mb-1">🎉 Novità: Supporto MySQL!</h4>
                   <p className="text-sm text-green-700">
-                    Ora puoi utilizzare Google Gemini Flash completamente gratis per generare codice di alta qualità.
+                    Ora puoi scegliere tra Supabase (cloud) e MySQL (self-hosted) per i tuoi progetti.
                   </p>
                 </div>
               </CardContent>
