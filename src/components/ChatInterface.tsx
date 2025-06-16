@@ -68,6 +68,7 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
 
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
+    const currentInput = inputValue;
     setInputValue('');
 
     try {
@@ -75,7 +76,9 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
         role: msg.role,
         content: msg.content
       }));
-      conversationMessages.push({ role: 'user', content: inputValue });
+      conversationMessages.push({ role: 'user', content: currentInput });
+
+      console.log('Sending message to AI:', currentInput);
 
       const response = await AIService.sendMessage(
         conversationMessages, 
@@ -83,7 +86,11 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
         selectedModel
       );
 
+      console.log('AI Response received:', response.content.substring(0, 200) + '...');
+
+      // Extract code from the response
       const extractedCode = AIService.extractCodeFromResponse(response.content);
+      console.log('Extracted code:', extractedCode ? extractedCode.substring(0, 200) + '...' : 'No code found');
 
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -96,20 +103,24 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
 
       setMessages(prev => [...prev, aiMessage]);
       
+      // Always generate code for the preview
       if (extractedCode) {
+        console.log('Using extracted code for preview');
         onCodeGenerated(extractedCode);
         toast.success("Codice generato e aggiornato nel preview!");
       } else {
+        console.log('No code extracted, generating fallback component');
         // Generate fallback component based on user input
-        const fallbackCode = AIService.generateSampleComponent(inputValue);
+        const fallbackCode = AIService.generateSampleComponent(currentInput);
         onCodeGenerated(fallbackCode);
+        toast.success("Componente di esempio generato!");
       }
     } catch (error: any) {
       console.error('Error sending message:', error);
       const errorMessage: ChatMessage = {
         id: (Date.now() + 2).toString(),
         role: 'assistant',
-        content: `Mi dispiace, si è verificato un errore: ${error.message}. Assicurati che la tua API key Gemini sia configurata correttamente nelle impostazioni.`,
+        content: `Mi dispiace, si è verificato un errore: ${error.message}`,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -141,6 +152,12 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
       setInputValue(lastUserMessage.content);
       handleSendMessage();
     }
+  };
+
+  const applyCodeToPreview = (code: string) => {
+    console.log('Applying code to preview:', code.substring(0, 200) + '...');
+    onCodeGenerated(code);
+    toast.success("Codice applicato al preview!");
   };
 
   return (
@@ -279,6 +296,15 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
                           className="h-6 w-6 p-0"
                         >
                           <Copy className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => applyCodeToPreview(message.codeBlock!)}
+                          className="h-6 w-6 p-0"
+                          title="Applica al preview"
+                        >
+                          <Wand2 className="w-3 h-3" />
                         </Button>
                         <Button
                           variant="ghost"
