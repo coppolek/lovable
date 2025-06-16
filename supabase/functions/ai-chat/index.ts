@@ -34,8 +34,77 @@ serve(async (req) => {
       hasGemini: !!geminiApiKey,
       hasOpenAI: !!openAIApiKey,
       hasClaude: !!claudeApiKey,
-      geminiKeyPreview: geminiApiKey ? `${geminiApiKey.substring(0, 10)}...` : 'none'
+      geminiKeyPreview: geminiApiKey ? `${geminiApiKey.substring(0, 10)}...` : 'none',
+      openaiKeyPreview: openAIApiKey ? `${openAIApiKey.substring(0, 10)}...` : 'none'
     });
+
+    // Validate API key format based on provider
+    if (provider === 'gemini') {
+      if (!geminiApiKey) {
+        console.error('Gemini API key not found');
+        return new Response(
+          JSON.stringify({ 
+            error: 'API key Gemini non configurata. Vai nelle Impostazioni e clicca su "Ottieni API Key Gratuita" per configurare Gemini Flash. Assicurati di copiare correttamente la chiave da https://makersuite.google.com/app/apikey' 
+          }), 
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      if (!geminiApiKey.startsWith('AI') || geminiApiKey.length < 30) {
+        console.error('Invalid Gemini API key format:', geminiApiKey.substring(0, 10));
+        return new Response(
+          JSON.stringify({ 
+            error: 'Formato API key Gemini non valido. La chiave deve iniziare con "AI" e essere lunga almeno 30 caratteri. Verifica di aver copiato correttamente la chiave da Google AI Studio.' 
+          }), 
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    } else if (provider === 'openai') {
+      if (!openAIApiKey) {
+        console.error('OpenAI API key not found');
+        return new Response(
+          JSON.stringify({ 
+            error: 'API key OpenAI non configurata. Vai nelle Impostazioni per configurare la tua API key OpenAI.' 
+          }), 
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      if (!openAIApiKey.startsWith('sk-') || openAIApiKey.length < 40) {
+        console.error('Invalid OpenAI API key format:', openAIApiKey.substring(0, 10));
+        return new Response(
+          JSON.stringify({ 
+            error: 'Formato API key OpenAI non valido. La chiave deve iniziare con "sk-" e essere lunga almeno 40 caratteri. Verifica di aver copiato correttamente la chiave da OpenAI.' 
+          }), 
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    } else if (provider === 'claude') {
+      if (!claudeApiKey) {
+        console.error('Claude API key not found');
+        return new Response(
+          JSON.stringify({ 
+            error: 'API key Claude non configurata. Vai nelle Impostazioni per configurare la tua API key Claude.' 
+          }), 
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    }
 
     const systemMessage = {
       role: 'system',
@@ -60,33 +129,6 @@ When generating components, make them:
     // Handle different AI providers
     if (provider === 'gemini') {
       console.log('Processing Gemini request...');
-      
-      if (!geminiApiKey) {
-        console.error('Gemini API key not found');
-        return new Response(
-          JSON.stringify({ 
-            error: 'API key Gemini non configurata. Vai nelle Impostazioni e clicca su "Ottieni API Key Gratuita" per configurare Gemini Flash. Assicurati di copiare correttamente la chiave da https://makersuite.google.com/app/apikey' 
-          }), 
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
-      // Validate API key format
-      if (!geminiApiKey.startsWith('AI') || geminiApiKey.length < 30) {
-        console.error('Invalid Gemini API key format');
-        return new Response(
-          JSON.stringify({ 
-            error: 'Formato API key Gemini non valido. La chiave deve iniziare con "AI" e essere lunga almeno 30 caratteri. Verifica di aver copiato correttamente la chiave da Google AI Studio.' 
-          }), 
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
 
       // Convert messages to Gemini format
       const geminiMessages = [systemMessage, ...messages];
@@ -232,15 +274,7 @@ When generating components, make them:
       });
 
     } else if (provider === 'openai') {
-      if (!openAIApiKey) {
-        return new Response(
-          JSON.stringify({ error: 'API key OpenAI non configurata. Configurala nelle impostazioni.' }), 
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
+      console.log('Processing OpenAI request...');
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -249,13 +283,15 @@ When generating components, make them:
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model,
+          model: model || 'gpt-4',
           messages: [systemMessage, ...messages],
           stream,
           temperature: 0.7,
           max_tokens: 2000,
         }),
       });
+
+      console.log('OpenAI API response status:', response.status);
 
       if (stream) {
         return new Response(response.body, {
@@ -267,9 +303,31 @@ When generating components, make them:
       }
 
       const data = await response.json();
+      console.log('OpenAI API response:', data);
       
       if (!response.ok) {
-        throw new Error(data.error?.message || 'OpenAI API request failed');
+        console.error('OpenAI API Error:', data);
+        let errorMessage = 'Errore nella comunicazione con OpenAI';
+        
+        if (data.error?.message) {
+          const errorMsg = data.error.message.toLowerCase();
+          
+          if (errorMsg.includes('incorrect api key') || errorMsg.includes('invalid api key')) {
+            errorMessage = 'API key OpenAI non valida. Verifica che sia corretta nelle impostazioni e che inizi con "sk-".';
+          } else if (errorMsg.includes('quota') || errorMsg.includes('billing')) {
+            errorMessage = 'Quota OpenAI superata o problema di fatturazione. Verifica il tuo account OpenAI.';
+          } else {
+            errorMessage = `Errore OpenAI: ${data.error.message}`;
+          }
+        }
+        
+        return new Response(
+          JSON.stringify({ error: errorMessage }), 
+          { 
+            status: response.status, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
 
       return new Response(JSON.stringify(data), {
@@ -277,16 +335,8 @@ When generating components, make them:
       });
 
     } else if (provider === 'claude') {
-      if (!claudeApiKey) {
-        return new Response(
-          JSON.stringify({ error: 'API key Claude non configurata. Configurala nelle impostazioni.' }), 
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
+      console.log('Processing Claude request...');
+      
       // Claude API implementation would go here
       return new Response(
         JSON.stringify({ error: 'Integrazione Claude in arrivo' }), 
