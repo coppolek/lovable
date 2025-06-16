@@ -16,7 +16,10 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const { signIn, signUp, resetPasswordForEmail } = useAuth();
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -81,6 +84,33 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!resetEmail) {
+      toast.error('Per favore inserisci la tua email');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      await resetPasswordForEmail(resetEmail);
+      toast.success('Email di reset password inviata! Controlla la tua casella di posta.');
+      setShowForgotPassword(false);
+      setResetEmail('');
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      
+      if (error.message?.includes('Invalid email')) {
+        toast.error('Per favore inserisci un indirizzo email valido');
+      } else if (error.message?.includes('Email not found')) {
+        toast.error('Nessun account trovato con questa email');
+      } else {
+        toast.error(error.message || 'Errore durante l\'invio dell\'email di reset. Riprova.');
+      }
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
@@ -95,38 +125,87 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
           </TabsList>
 
           <TabsContent value="signin" className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="la-tua-email@esempio.com"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
-            </div>
-            <Button 
-              onClick={handleSignIn} 
-              disabled={loading || !email || !password} 
-              className="w-full"
-            >
-              {loading ? 'Accesso in corso...' : 'Accedi'}
-            </Button>
-            <p className="text-sm text-gray-600 text-center">
-              Non hai un account? Passa alla scheda "Registrati"
-            </p>
+            {!showForgotPassword ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="la-tua-email@esempio.com"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+                <Button 
+                  onClick={handleSignIn} 
+                  disabled={loading || !email || !password} 
+                  className="w-full"
+                >
+                  {loading ? 'Accesso in corso...' : 'Accedi'}
+                </Button>
+                <div className="text-center space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Password dimenticata?
+                  </button>
+                  <p className="text-sm text-gray-600">
+                    Non hai un account? Passa alla scheda "Registrati"
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email per il reset della password</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="la-tua-email@esempio.com"
+                    required
+                  />
+                </div>
+                <div className="flex space-x-2">
+                  <Button 
+                    onClick={handleForgotPassword} 
+                    disabled={resetLoading || !resetEmail} 
+                    className="flex-1"
+                  >
+                    {resetLoading ? 'Invio in corso...' : 'Invia email di reset'}
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setResetEmail('');
+                    }}
+                    disabled={resetLoading}
+                  >
+                    Annulla
+                  </Button>
+                </div>
+                <p className="text-sm text-gray-600 text-center">
+                  Ti invieremo un'email con le istruzioni per reimpostare la password
+                </p>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="signup" className="space-y-4">
