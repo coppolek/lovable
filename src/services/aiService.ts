@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Message {
@@ -15,15 +14,33 @@ export interface AIResponse {
 export class AIService {
   static async sendMessage(
     messages: Message[], 
-    provider: string = 'openai', 
-    model: string = 'gpt-4o-mini'
+    provider: string = 'gemini', 
+    model: string = 'gemini-1.5-flash'
   ): Promise<AIResponse> {
+    // Get API keys from localStorage
+    const settings = localStorage.getItem('lovable-clone-settings');
+    let apiKeys = {};
+    
+    if (settings) {
+      try {
+        const parsed = JSON.parse(settings);
+        apiKeys = {
+          geminiKey: parsed.geminiKey,
+          openaiKey: parsed.openaiKey,
+          claudeKey: parsed.claudeKey
+        };
+      } catch (error) {
+        console.error('Error parsing settings:', error);
+      }
+    }
+
     const { data, error } = await supabase.functions.invoke('ai-chat', {
       body: {
         messages,
         provider,
         model,
         stream: false,
+        apiKeys, // Pass API keys to the edge function
       },
     });
 
@@ -44,16 +61,34 @@ export class AIService {
 
   static async sendStreamMessage(
     messages: Message[], 
-    provider: string = 'openai', 
-    model: string = 'gpt-4o-mini',
+    provider: string = 'gemini', 
+    model: string = 'gemini-1.5-flash',
     onChunk: (chunk: string) => void
   ): Promise<void> {
+    // Get API keys from localStorage
+    const settings = localStorage.getItem('lovable-clone-settings');
+    let apiKeys = {};
+    
+    if (settings) {
+      try {
+        const parsed = JSON.parse(settings);
+        apiKeys = {
+          geminiKey: parsed.geminiKey,
+          openaiKey: parsed.openaiKey,
+          claudeKey: parsed.claudeKey
+        };
+      } catch (error) {
+        console.error('Error parsing settings:', error);
+      }
+    }
+
     const { data, error } = await supabase.functions.invoke('ai-chat', {
       body: {
         messages,
         provider,
         model,
         stream: true,
+        apiKeys, // Pass API keys to the edge function
       },
     });
 

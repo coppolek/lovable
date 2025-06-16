@@ -7,7 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ExternalLink, Key, CheckCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 
 interface SettingsModalProps {
   open: boolean;
@@ -26,10 +28,35 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
     codeFormatting: true
   });
 
+  // Load settings from localStorage on component mount
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('lovable-clone-settings');
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings);
+        setSettings(prev => ({ ...prev, ...parsed }));
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      }
+    }
+  }, []);
+
   const handleSave = () => {
-    // Save settings to localStorage or backend
+    // Save settings to localStorage
     localStorage.setItem('lovable-clone-settings', JSON.stringify(settings));
     onClose();
+  };
+
+  const openGeminiApiPage = () => {
+    window.open('https://makersuite.google.com/app/apikey', '_blank');
+  };
+
+  const openOpenAIApiPage = () => {
+    window.open('https://platform.openai.com/api-keys', '_blank');
+  };
+
+  const openClaudeApiPage = () => {
+    window.open('https://console.anthropic.com/', '_blank');
   };
 
   return (
@@ -48,32 +75,65 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
           </TabsList>
 
           <TabsContent value="ai" className="space-y-4">
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Raccomandato:</strong> Inizia con Gemini Flash - è completamente gratuito e offre prestazioni eccellenti per la generazione di codice!
+              </AlertDescription>
+            </Alert>
+
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Configurazione AI</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Key className="w-5 h-5" />
+                  Configurazione AI
+                </CardTitle>
                 <CardDescription>
                   Configura le tue API keys per i diversi provider AI. Gemini Flash è gratuito e consigliato!
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="gemini">Google Gemini API Key</Label>
+              <CardContent className="space-y-6">
+                {/* Gemini API Key */}
+                <div className="space-y-3 p-4 border border-green-200 rounded-lg bg-green-50">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="gemini" className="font-semibold text-green-800">
+                      Google Gemini API Key
+                    </Label>
+                    <Badge className="bg-green-600">Gratuito</Badge>
+                  </div>
                   <Input
                     id="gemini"
                     type="password"
-                    placeholder="AI..."
+                    placeholder="Inserisci la tua API key Gemini..."
                     value={settings.geminiKey}
                     onChange={(e) => setSettings({...settings, geminiKey: e.target.value})}
                   />
-                  <p className="text-xs text-green-600">
-                    ✅ Gemini Flash è gratuito! Ottieni la tua API key su{' '}
-                    <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="underline">
-                      Google AI Studio
-                    </a>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={openGeminiApiPage}
+                      className="text-green-700 border-green-300 hover:bg-green-100"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Ottieni API Key Gratuita
+                    </Button>
+                  </div>
+                  <p className="text-sm text-green-700">
+                    ✅ <strong>Completamente gratuito</strong> - Fino a 15 richieste al minuto<br/>
+                    ✅ <strong>Veloce e affidabile</strong> - Ottimo per generazione codice<br/>
+                    ✅ <strong>Facile da configurare</strong> - Bastano 2 minuti
                   </p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="openai">OpenAI API Key</Label>
+
+                {/* OpenAI API Key */}
+                <div className="space-y-3 p-4 border border-amber-200 rounded-lg bg-amber-50">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="openai" className="font-semibold text-amber-800">
+                      OpenAI API Key
+                    </Label>
+                    <Badge variant="outline" className="text-amber-700 border-amber-300">A Pagamento</Badge>
+                  </div>
                   <Input
                     id="openai"
                     type="password"
@@ -81,12 +141,30 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
                     value={settings.openaiKey}
                     onChange={(e) => setSettings({...settings, openaiKey: e.target.value})}
                   />
-                  <p className="text-xs text-amber-600">
-                    ⚠️ OpenAI richiede crediti a pagamento
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={openOpenAIApiPage}
+                      className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Ottieni API Key
+                    </Button>
+                  </div>
+                  <p className="text-sm text-amber-700">
+                    ⚠️ OpenAI richiede crediti a pagamento (~$0.002 per 1000 token)
                   </p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="claude">Anthropic Claude API Key</Label>
+
+                {/* Claude API Key */}
+                <div className="space-y-3 p-4 border border-purple-200 rounded-lg bg-purple-50">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="claude" className="font-semibold text-purple-800">
+                      Anthropic Claude API Key
+                    </Label>
+                    <Badge variant="outline" className="text-purple-700 border-purple-300">A Pagamento</Badge>
+                  </div>
                   <Input
                     id="claude"
                     type="password"
@@ -94,10 +172,23 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
                     value={settings.claudeKey}
                     onChange={(e) => setSettings({...settings, claudeKey: e.target.value})}
                   />
-                  <p className="text-xs text-amber-600">
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={openClaudeApiPage}
+                      className="text-purple-700 border-purple-300 hover:bg-purple-100"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Ottieni API Key
+                    </Button>
+                  </div>
+                  <p className="text-sm text-purple-700">
                     ⚠️ Claude richiede crediti a pagamento
                   </p>
                 </div>
+
+                {/* Default AI Selection */}
                 <div className="space-y-2">
                   <Label htmlFor="defaultAI">AI Predefinita</Label>
                   <Select value={settings.defaultAI} onValueChange={(value) => setSettings({...settings, defaultAI: value})}>
@@ -108,11 +199,21 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
                       <SelectItem value="gemini">
                         <div className="flex items-center gap-2">
                           <span>Google Gemini</span>
-                          <Badge variant="secondary" className="text-xs">Gratuito</Badge>
+                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">Gratuito</Badge>
                         </div>
                       </SelectItem>
-                      <SelectItem value="openai">OpenAI GPT-4</SelectItem>
-                      <SelectItem value="claude">Anthropic Claude</SelectItem>
+                      <SelectItem value="openai">
+                        <div className="flex items-center gap-2">
+                          <span>OpenAI GPT-4</span>
+                          <Badge variant="outline" className="text-xs">A Pagamento</Badge>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="claude">
+                        <div className="flex items-center gap-2">
+                          <span>Anthropic Claude</span>
+                          <Badge variant="outline" className="text-xs">A Pagamento</Badge>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

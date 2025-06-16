@@ -1,10 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-const claudeApiKey = Deno.env.get('CLAUDE_API_KEY');
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -16,7 +12,12 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, provider = 'gemini', model = 'gemini-1.5-flash', stream = false } = await req.json();
+    const { messages, provider = 'gemini', model = 'gemini-1.5-flash', stream = false, apiKeys = {} } = await req.json();
+
+    // Get API keys from request body (passed from frontend) or environment variables
+    const geminiApiKey = apiKeys.geminiKey || Deno.env.get('GEMINI_API_KEY');
+    const openAIApiKey = apiKeys.openaiKey || Deno.env.get('OPENAI_API_KEY');
+    const claudeApiKey = apiKeys.claudeKey || Deno.env.get('CLAUDE_API_KEY');
 
     const systemMessage = {
       role: 'system',
@@ -42,7 +43,9 @@ When generating components, make them:
     if (provider === 'gemini') {
       if (!geminiApiKey) {
         return new Response(
-          JSON.stringify({ error: 'Gemini API key not configured. Get your free API key at https://makersuite.google.com/app/apikey' }), 
+          JSON.stringify({ 
+            error: 'API key Gemini non configurata. Ottieni la tua API key gratuita su https://makersuite.google.com/app/apikey e configurala nelle impostazioni.' 
+          }), 
           { 
             status: 500, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -51,10 +54,15 @@ When generating components, make them:
       }
 
       // Convert messages to Gemini format
-      const geminiMessages = [systemMessage, ...messages].map(msg => ({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }]
-      }));
+      const geminiMessages = [systemMessage, ...messages];
+      
+      // Combine all messages into a single prompt for Gemini
+      const prompt = geminiMessages.map(msg => {
+        if (msg.role === 'system') return `Sistema: ${msg.content}`;
+        if (msg.role === 'user') return `Utente: ${msg.content}`;
+        if (msg.role === 'assistant') return `Assistente: ${msg.content}`;
+        return msg.content;
+      }).join('\n\n');
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
@@ -62,7 +70,9 @@ When generating components, make them:
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          contents: geminiMessages.filter(msg => msg.role !== 'system'), // Gemini doesn't use system messages the same way
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
           generationConfig: {
             temperature: 0.7,
             maxOutputTokens: 2000,
@@ -73,14 +83,17 @@ When generating components, make them:
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error?.message || 'Gemini API request failed');
+        console.error('Gemini API Error:', data);
+        throw new Error(data.error?.message || `Gemini API error: ${response.status}`);
       }
 
       // Convert Gemini response to OpenAI format for compatibility
+      const content = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
+      
       const geminiResponse = {
         choices: [{
           message: {
-            content: data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated'
+            content: content
           }
         }]
       };
@@ -92,7 +105,7 @@ When generating components, make them:
     } else if (provider === 'openai') {
       if (!openAIApiKey) {
         return new Response(
-          JSON.stringify({ error: 'OpenAI API key not configured' }), 
+          JSON.stringify({ error: 'API key OpenAI non configurata. Configurala nelle impostazioni.' }), 
           { 
             status: 500, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -137,7 +150,7 @@ When generating components, make them:
     } else if (provider === 'claude') {
       if (!claudeApiKey) {
         return new Response(
-          JSON.stringify({ error: 'Claude API key not configured' }), 
+          JSON.stringify({ error: 'API key Claude non configurata. Configurala nelle impostazioni.' }), 
           { 
             status: 500, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -147,7 +160,7 @@ When generating components, make them:
 
       // Claude API implementation would go here
       return new Response(
-        JSON.stringify({ error: 'Claude integration coming soon' }), 
+        JSON.stringify({ error: 'Integrazione Claude in arrivo' }), 
         { 
           status: 501, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -156,7 +169,7 @@ When generating components, make them:
     }
 
     return new Response(
-      JSON.stringify({ error: 'Unsupported AI provider' }), 
+      JSON.stringify({ error: 'Provider AI non supportato' }), 
       { 
         status: 400, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
