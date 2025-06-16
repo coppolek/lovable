@@ -12,19 +12,29 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, provider = 'gemini', model = 'gemini-1.5-flash', stream = false, apiKeys = {} } = await req.json();
+    const requestBody = await req.json();
+    const { messages, provider = 'gemini', model = 'gemini-1.5-flash', stream = false, apiKeys = {} } = requestBody;
 
-    console.log('Received request:', { provider, model, hasApiKeys: !!apiKeys });
+    console.log('=== AI Chat Function Debug ===');
+    console.log('Received request:', { provider, model, stream });
     console.log('API Keys received:', { 
       hasGemini: !!apiKeys.geminiKey, 
       hasOpenAI: !!apiKeys.openaiKey, 
-      hasClaude: !!apiKeys.claudeKey 
+      hasClaude: !!apiKeys.claudeKey,
+      geminiKeyLength: apiKeys.geminiKey ? apiKeys.geminiKey.length : 0
     });
+    console.log('Messages count:', messages?.length);
 
     // Get API keys from request body (passed from frontend) or environment variables
     const geminiApiKey = apiKeys.geminiKey || Deno.env.get('GEMINI_API_KEY');
     const openAIApiKey = apiKeys.openaiKey || Deno.env.get('OPENAI_API_KEY');
     const claudeApiKey = apiKeys.claudeKey || Deno.env.get('CLAUDE_API_KEY');
+
+    console.log('Final API keys:', {
+      hasGemini: !!geminiApiKey,
+      hasOpenAI: !!openAIApiKey,
+      hasClaude: !!claudeApiKey
+    });
 
     const systemMessage = {
       role: 'system',
@@ -48,16 +58,16 @@ When generating components, make them:
 
     // Handle different AI providers
     if (provider === 'gemini') {
-      console.log('Processing Gemini request, API key available:', !!geminiApiKey);
+      console.log('Processing Gemini request...');
       
       if (!geminiApiKey) {
         console.error('Gemini API key not found');
         return new Response(
           JSON.stringify({ 
-            error: 'API key Gemini non configurata. Ottieni la tua API key gratuita su https://makersuite.google.com/app/apikey e configurala nelle impostazioni.' 
+            error: 'API key Gemini non configurata. Vai nelle Impostazioni e clicca su "Ottieni API Key Gratuita" per configurare Gemini Flash.' 
           }), 
           { 
-            status: 500, 
+            status: 400, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
@@ -75,26 +85,32 @@ When generating components, make them:
       }).join('\n\n');
 
       console.log('Making request to Gemini API...');
+      console.log('Prompt length:', prompt.length);
 
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
       
+      const geminiRequestBody = {
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2000,
+        }
+      };
+
+      console.log('Gemini request body:', JSON.stringify(geminiRequestBody, null, 2));
+
       const response = await fetch(geminiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2000,
-          }
-        }),
+        body: JSON.stringify(geminiRequestBody),
       });
 
       console.log('Gemini API response status:', response.status);
+      console.log('Gemini API response headers:', Object.fromEntries(response.headers.entries()));
 
       const data = await response.json();
       console.log('Gemini API response data:', JSON.stringify(data, null, 2));
@@ -104,22 +120,31 @@ When generating components, make them:
         let errorMessage = 'Errore nella comunicazione con Gemini';
         
         if (data.error?.message) {
-          if (data.error.message.includes('API_KEY_INVALID')) {
-            errorMessage = 'API key Gemini non valida. Verifica che sia corretta nelle impostazioni.';
+          if (data.error.message.includes('API_KEY_INVALID') || data.error.message.includes('invalid API key')) {
+            errorMessage = 'API key Gemini non valida. Verifica che sia corretta nelle impostazioni. Vai su https://makersuite.google.com/app/apikey per ottenerne una nuova.';
           } else if (data.error.message.includes('QUOTA_EXCEEDED')) {
             errorMessage = 'Quota Gemini superata. Riprova più tardi o verifica i limiti del tuo account.';
+          } else if (data.error.message.includes('PERMISSION_DENIED')) {
+            errorMessage = 'Permesso negato. Verifica che la tua API key Gemini abbia i permessi corretti.';
           } else {
             errorMessage = `Errore Gemini: ${data.error.message}`;
           }
         }
         
-        throw new Error(errorMessage);
+        return new Response(
+          JSON.stringify({ error: errorMessage }), 
+          { 
+            status: response.status, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
 
       // Convert Gemini response to OpenAI format for compatibility
       const content = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
       
       console.log('Generated content length:', content.length);
+      console.log('Generated content preview:', content.substring(0, 200) + '...');
       
       const geminiResponse = {
         choices: [{
@@ -138,7 +163,7 @@ When generating components, make them:
         return new Response(
           JSON.stringify({ error: 'API key OpenAI non configurata. Configurala nelle impostazioni.' }), 
           { 
-            status: 500, 
+            status: 400, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
@@ -183,7 +208,7 @@ When generating components, make them:
         return new Response(
           JSON.stringify({ error: 'API key Claude non configurata. Configurala nelle impostazioni.' }), 
           { 
-            status: 500, 
+            status: 400, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
@@ -208,9 +233,14 @@ When generating components, make them:
     );
 
   } catch (error) {
-    console.error('Error in ai-chat function:', error);
+    console.error('=== Error in ai-chat function ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
     return new Response(
-      JSON.stringify({ error: error.message }), 
+      JSON.stringify({ 
+        error: `Errore interno del server: ${error.message}. Verifica la configurazione delle API keys nelle impostazioni.` 
+      }), 
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

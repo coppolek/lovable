@@ -36,7 +36,7 @@ export class AIService {
 
     // Check if the required API key is available
     if (provider === 'gemini' && !apiKeys.geminiKey) {
-      throw new Error('API key Gemini non configurata. Vai nelle Impostazioni per configurare la tua API key gratuita di Gemini.');
+      throw new Error('API key Gemini non configurata. Vai nelle Impostazioni per configurare la tua API key gratuita di Gemini. Clicca su "Ottieni API Key Gratuita" per aprire Google AI Studio.');
     }
     if (provider === 'openai' && !apiKeys.openaiKey) {
       throw new Error('API key OpenAI non configurata. Vai nelle Impostazioni per configurarla.');
@@ -44,6 +44,13 @@ export class AIService {
     if (provider === 'claude' && !apiKeys.claudeKey) {
       throw new Error('API key Claude non configurata. Vai nelle Impostazioni per configurarla.');
     }
+
+    console.log('Sending request with provider:', provider, 'model:', model);
+    console.log('API Keys available:', {
+      gemini: !!apiKeys.geminiKey,
+      openai: !!apiKeys.openaiKey,
+      claude: !!apiKeys.claudeKey
+    });
 
     const { data, error } = await supabase.functions.invoke('ai-chat', {
       body: {
@@ -56,10 +63,12 @@ export class AIService {
     });
 
     if (error) {
-      throw new Error(error.message);
+      console.error('Supabase function error:', error);
+      throw new Error(`Errore nella comunicazione: ${error.message}`);
     }
 
     if (data.error) {
+      console.error('AI service error:', data.error);
       throw new Error(data.error);
     }
 
