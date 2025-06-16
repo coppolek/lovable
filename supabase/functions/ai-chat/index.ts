@@ -37,24 +37,53 @@ serve(async (req) => {
       hasClaude: !!claudeApiKey,
       geminiKeyPreview: geminiApiKey ? `${geminiApiKey.substring(0, 10)}...` : 'none',
       geminiKeyLength: geminiApiKey ? geminiApiKey.length : 0,
-      geminiKeyStartsWithAI: geminiApiKey ? geminiApiKey.startsWith('AI') : false
+      geminiKeyStartsWithAI: geminiApiKey ? geminiApiKey.startsWith('AI') : false,
+      openaiKeyPreview: openAIApiKey ? `${openAIApiKey.substring(0, 10)}...` : 'none',
+      openaiKeyStartsWithSk: openAIApiKey ? openAIApiKey.startsWith('sk-') : false
     });
+
+    // Validate that we have the correct API key for the requested provider
+    if (provider === 'gemini' && !geminiApiKey) {
+      console.error('Gemini API key not found');
+      return new Response(
+        JSON.stringify({ 
+          error: 'API key Gemini non configurata. Vai nelle Impostazioni e clicca su "Ottieni API Key Gratuita" per configurare Gemini Flash. Assicurati di copiare correttamente la chiave da https://makersuite.google.com/app/apikey' 
+        }), 
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    if (provider === 'openai' && !openAIApiKey) {
+      console.error('OpenAI API key not found');
+      return new Response(
+        JSON.stringify({ 
+          error: 'API key OpenAI non configurata. Vai nelle Impostazioni per configurare la tua API key OpenAI.' 
+        }), 
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    if (provider === 'claude' && !claudeApiKey) {
+      console.error('Claude API key not found');
+      return new Response(
+        JSON.stringify({ 
+          error: 'API key Claude non configurata. Vai nelle Impostazioni per configurare la tua API key Claude.' 
+        }), 
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
     // Validate API key format based on provider
     if (provider === 'gemini') {
-      if (!geminiApiKey) {
-        console.error('Gemini API key not found');
-        return new Response(
-          JSON.stringify({ 
-            error: 'API key Gemini non configurata. Vai nelle Impostazioni e clicca su "Ottieni API Key Gratuita" per configurare Gemini Flash. Assicurati di copiare correttamente la chiave da https://makersuite.google.com/app/apikey' 
-          }), 
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
       // More detailed validation logging
       console.log('Validating Gemini API key:', {
         key: geminiApiKey,
@@ -93,18 +122,11 @@ serve(async (req) => {
       console.log('✅ Gemini API key validation passed');
 
     } else if (provider === 'openai') {
-      if (!openAIApiKey) {
-        console.error('OpenAI API key not found');
-        return new Response(
-          JSON.stringify({ 
-            error: 'API key OpenAI non configurata. Vai nelle Impostazioni per configurare la tua API key OpenAI.' 
-          }), 
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
+      console.log('Validating OpenAI API key:', {
+        key: openAIApiKey ? `${openAIApiKey.substring(0, 10)}...` : 'none',
+        length: openAIApiKey ? openAIApiKey.length : 0,
+        startsWithSk: openAIApiKey ? openAIApiKey.startsWith('sk-') : false
+      });
 
       if (!openAIApiKey.startsWith('sk-') || openAIApiKey.length < 40) {
         console.error('Invalid OpenAI API key format:', openAIApiKey.substring(0, 10));
@@ -118,19 +140,8 @@ serve(async (req) => {
           }
         );
       }
-    } else if (provider === 'claude') {
-      if (!claudeApiKey) {
-        console.error('Claude API key not found');
-        return new Response(
-          JSON.stringify({ 
-            error: 'API key Claude non configurata. Vai nelle Impostazioni per configurare la tua API key Claude.' 
-          }), 
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
+
+      console.log('✅ OpenAI API key validation passed');
     }
 
     const systemMessage = {
@@ -303,6 +314,7 @@ When generating components, make them:
 
     } else if (provider === 'openai') {
       console.log('Processing OpenAI request...');
+      console.log('Using OpenAI API key:', openAIApiKey ? `${openAIApiKey.substring(0, 10)}...` : 'none');
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -341,7 +353,7 @@ When generating components, make them:
           const errorMsg = data.error.message.toLowerCase();
           
           if (errorMsg.includes('incorrect api key') || errorMsg.includes('invalid api key')) {
-            errorMessage = 'API key OpenAI non valida. Verifica che sia corretta nelle impostazioni e che inizi con "sk-".';
+            errorMessage = `❌ API key OpenAI non valida. La chiave "${openAIApiKey.substring(0, 10)}..." non è riconosciuta da OpenAI. Verifica che sia corretta nelle impostazioni e che inizi con "sk-".`;
           } else if (errorMsg.includes('quota') || errorMsg.includes('billing')) {
             errorMessage = 'Quota OpenAI superata o problema di fatturazione. Verifica il tuo account OpenAI.';
           } else {
