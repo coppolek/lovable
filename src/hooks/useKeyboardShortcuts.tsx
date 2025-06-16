@@ -1,4 +1,3 @@
-
 import { useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 
@@ -69,6 +68,11 @@ export const useKeyboardShortcuts = (shortcuts: ShortcutConfig[] = []) => {
   const allShortcuts = [...defaultShortcuts, ...shortcuts];
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Check if event.key exists and is a string before proceeding
+    if (!event.key || typeof event.key !== 'string') {
+      return;
+    }
+
     const shortcut = allShortcuts.find(s => {
       const ctrlMatch = s.ctrl ? event.ctrlKey || event.metaKey : !event.ctrlKey && !event.metaKey;
       const shiftMatch = s.shift ? event.shiftKey : !event.shiftKey;
