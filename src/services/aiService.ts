@@ -34,6 +34,17 @@ export class AIService {
       }
     }
 
+    // Check if the required API key is available
+    if (provider === 'gemini' && !apiKeys.geminiKey) {
+      throw new Error('API key Gemini non configurata. Vai nelle Impostazioni per configurare la tua API key gratuita di Gemini.');
+    }
+    if (provider === 'openai' && !apiKeys.openaiKey) {
+      throw new Error('API key OpenAI non configurata. Vai nelle Impostazioni per configurarla.');
+    }
+    if (provider === 'claude' && !apiKeys.claudeKey) {
+      throw new Error('API key Claude non configurata. Vai nelle Impostazioni per configurarla.');
+    }
+
     const { data, error } = await supabase.functions.invoke('ai-chat', {
       body: {
         messages,

@@ -14,6 +14,13 @@ serve(async (req) => {
   try {
     const { messages, provider = 'gemini', model = 'gemini-1.5-flash', stream = false, apiKeys = {} } = await req.json();
 
+    console.log('Received request:', { provider, model, hasApiKeys: !!apiKeys });
+    console.log('API Keys received:', { 
+      hasGemini: !!apiKeys.geminiKey, 
+      hasOpenAI: !!apiKeys.openaiKey, 
+      hasClaude: !!apiKeys.claudeKey 
+    });
+
     // Get API keys from request body (passed from frontend) or environment variables
     const geminiApiKey = apiKeys.geminiKey || Deno.env.get('GEMINI_API_KEY');
     const openAIApiKey = apiKeys.openaiKey || Deno.env.get('OPENAI_API_KEY');
@@ -41,7 +48,10 @@ When generating components, make them:
 
     // Handle different AI providers
     if (provider === 'gemini') {
+      console.log('Processing Gemini request, API key available:', !!geminiApiKey);
+      
       if (!geminiApiKey) {
+        console.error('Gemini API key not found');
         return new Response(
           JSON.stringify({ 
             error: 'API key Gemini non configurata. Ottieni la tua API key gratuita su https://makersuite.google.com/app/apikey e configurala nelle impostazioni.' 
@@ -64,7 +74,11 @@ When generating components, make them:
         return msg.content;
       }).join('\n\n');
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
+      console.log('Making request to Gemini API...');
+
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+      
+      const response = await fetch(geminiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,15 +94,32 @@ When generating components, make them:
         }),
       });
 
+      console.log('Gemini API response status:', response.status);
+
       const data = await response.json();
+      console.log('Gemini API response data:', JSON.stringify(data, null, 2));
       
       if (!response.ok) {
         console.error('Gemini API Error:', data);
-        throw new Error(data.error?.message || `Gemini API error: ${response.status}`);
+        let errorMessage = 'Errore nella comunicazione con Gemini';
+        
+        if (data.error?.message) {
+          if (data.error.message.includes('API_KEY_INVALID')) {
+            errorMessage = 'API key Gemini non valida. Verifica che sia corretta nelle impostazioni.';
+          } else if (data.error.message.includes('QUOTA_EXCEEDED')) {
+            errorMessage = 'Quota Gemini superata. Riprova più tardi o verifica i limiti del tuo account.';
+          } else {
+            errorMessage = `Errore Gemini: ${data.error.message}`;
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
 
       // Convert Gemini response to OpenAI format for compatibility
       const content = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
+      
+      console.log('Generated content length:', content.length);
       
       const geminiResponse = {
         choices: [{
