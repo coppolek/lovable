@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +19,7 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
     openaiKey: '',
     claudeKey: '',
     geminiKey: '',
-    defaultAI: 'openai',
+    defaultAI: 'gemini',
     autoSave: true,
     darkMode: false,
     notifications: true,
@@ -53,10 +52,26 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
               <CardHeader>
                 <CardTitle className="text-lg">Configurazione AI</CardTitle>
                 <CardDescription>
-                  Configura le tue API keys per i diversi provider AI
+                  Configura le tue API keys per i diversi provider AI. Gemini Flash è gratuito e consigliato!
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="gemini">Google Gemini API Key</Label>
+                  <Input
+                    id="gemini"
+                    type="password"
+                    placeholder="AI..."
+                    value={settings.geminiKey}
+                    onChange={(e) => setSettings({...settings, geminiKey: e.target.value})}
+                  />
+                  <p className="text-xs text-green-600">
+                    ✅ Gemini Flash è gratuito! Ottieni la tua API key su{' '}
+                    <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="underline">
+                      Google AI Studio
+                    </a>
+                  </p>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="openai">OpenAI API Key</Label>
                   <Input
@@ -66,6 +81,9 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
                     value={settings.openaiKey}
                     onChange={(e) => setSettings({...settings, openaiKey: e.target.value})}
                   />
+                  <p className="text-xs text-amber-600">
+                    ⚠️ OpenAI richiede crediti a pagamento
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="claude">Anthropic Claude API Key</Label>
@@ -76,16 +94,9 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
                     value={settings.claudeKey}
                     onChange={(e) => setSettings({...settings, claudeKey: e.target.value})}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="gemini">Google Gemini API Key</Label>
-                  <Input
-                    id="gemini"
-                    type="password"
-                    placeholder="AI..."
-                    value={settings.geminiKey}
-                    onChange={(e) => setSettings({...settings, geminiKey: e.target.value})}
-                  />
+                  <p className="text-xs text-amber-600">
+                    ⚠️ Claude richiede crediti a pagamento
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="defaultAI">AI Predefinita</Label>
@@ -94,9 +105,14 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="gemini">
+                        <div className="flex items-center gap-2">
+                          <span>Google Gemini</span>
+                          <Badge variant="secondary" className="text-xs">Gratuito</Badge>
+                        </div>
+                      </SelectItem>
                       <SelectItem value="openai">OpenAI GPT-4</SelectItem>
                       <SelectItem value="claude">Anthropic Claude</SelectItem>
-                      <SelectItem value="gemini">Google Gemini</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -195,7 +211,7 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
                     <li>• Chat interface con AI multipli</li>
                     <li>• Editor di codice integrato</li>
                     <li>• Preview live dei componenti</li>
-                    <li>• Supporto per OpenAI, Claude, Gemini</li>
+                    <li>• Supporto per Gemini Flash (gratuito), OpenAI, Claude</li>
                     <li>• Design responsive</li>
                     <li>• Animazioni fluide</li>
                   </ul>
@@ -204,6 +220,12 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
                   <h4 className="font-medium">Tecnologie</h4>
                   <p className="text-sm text-gray-600">
                     Costruito con React, TypeScript, Tailwind CSS, e shadcn/ui
+                  </p>
+                </div>
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <h4 className="font-medium text-green-800 mb-1">🎉 Novità: Gemini Flash Gratuito!</h4>
+                  <p className="text-sm text-green-700">
+                    Ora puoi utilizzare Google Gemini Flash completamente gratis per generare codice di alta qualità.
                   </p>
                 </div>
               </CardContent>
@@ -215,7 +237,7 @@ const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
           <Button variant="outline" onClick={onClose}>
             Annulla
           </Button>
-          <Button onClick={handleSave} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+          <Button onClick={handleSave} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
             Salva Impostazioni
           </Button>
         </div>

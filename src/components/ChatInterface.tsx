@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,14 +26,14 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
     {
       id: '1',
       role: 'assistant',
-      content: 'Ciao! Sono Lovable, il tuo assistente AI per creare applicazioni web. Dimmi cosa vuoi costruire e ti aiuterò a generare il codice React in tempo reale!',
+      content: 'Ciao! Sono Lovable, il tuo assistente AI per creare applicazioni web. Dimmi cosa vuoi costruire e ti aiuterò a generare il codice React in tempo reale! Ora utilizzo Gemini Flash di Google per prestazioni ottimali e gratuite.',
       timestamp: new Date(),
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedAI, setSelectedAI] = useState('openai');
-  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
+  const [selectedAI, setSelectedAI] = useState('gemini');
+  const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [suggestedPrompts] = useState([
@@ -110,7 +109,7 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
       const errorMessage: ChatMessage = {
         id: (Date.now() + 2).toString(),
         role: 'assistant',
-        content: `Mi dispiace, si è verificato un errore: ${error.message}. Assicurati che la tua API key OpenAI sia configurata correttamente.`,
+        content: `Mi dispiace, si è verificato un errore: ${error.message}. Assicurati che la tua API key Gemini sia configurata correttamente nelle impostazioni.`,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -153,7 +152,7 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
             <Sparkles className="w-5 h-5 text-purple-600" />
             <h3 className="font-semibold text-gray-800">AI Assistant</h3>
             <Badge variant="secondary" className="text-xs">
-              Powered by OpenAI
+              Powered by Gemini Flash
             </Badge>
           </div>
 
@@ -164,6 +163,12 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="gemini">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    Google Gemini (Gratuito)
+                  </div>
+                </SelectItem>
                 <SelectItem value="openai">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 bg-green-500 rounded-full"></div>
@@ -174,12 +179,6 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
                     Anthropic Claude
-                  </div>
-                </SelectItem>
-                <SelectItem value="gemini">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                    Google Gemini
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -193,10 +192,21 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="gpt-4o-mini">GPT-4 Turbo</SelectItem>
-                <SelectItem value="gpt-4o">GPT-4</SelectItem>
-                <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                <SelectItem value="gemini-pro">Gemini Pro</SelectItem>
+                {selectedAI === 'gemini' && (
+                  <>
+                    <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash (Gratuito)</SelectItem>
+                    <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
+                  </>
+                )}
+                {selectedAI === 'openai' && (
+                  <>
+                    <SelectItem value="gpt-4o-mini">GPT-4 Turbo</SelectItem>
+                    <SelectItem value="gpt-4o">GPT-4</SelectItem>
+                  </>
+                )}
+                {selectedAI === 'claude' && (
+                  <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -235,7 +245,7 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
               className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {message.role === 'assistant' && (
-                <Avatar className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600">
+                <Avatar className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600">
                   <AvatarFallback>
                     <Bot className="w-4 h-4 text-white" />
                   </AvatarFallback>
@@ -323,7 +333,7 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
           {/* Loading state */}
           {isLoading && (
             <div className="flex gap-3 justify-start">
-              <Avatar className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600">
+              <Avatar className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600">
                 <AvatarFallback>
                   <Loader2 className="w-4 h-4 text-white animate-spin" />
                 </AvatarFallback>
@@ -331,7 +341,7 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
               <div className="bg-white border shadow-sm p-3 rounded-lg">
                 <div className="flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm text-gray-500">Generando codice...</span>
+                  <span className="text-sm text-gray-500">Generando codice con Gemini Flash...</span>
                 </div>
               </div>
             </div>
@@ -347,7 +357,7 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-600" />
               <p className="text-sm text-amber-800">
-                Accedi per utilizzare l'AI e salvare i tuoi progetti
+                Accedi per utilizzare Gemini Flash e salvare i tuoi progetti
               </p>
             </div>
           </div>
@@ -380,7 +390,7 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
           <Button 
             onClick={handleSendMessage} 
             disabled={!inputValue.trim() || isLoading || !user}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
