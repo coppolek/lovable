@@ -21,7 +21,8 @@ serve(async (req) => {
       hasGemini: !!apiKeys.geminiKey, 
       hasOpenAI: !!apiKeys.openaiKey, 
       hasClaude: !!apiKeys.claudeKey,
-      geminiKeyLength: apiKeys.geminiKey ? apiKeys.geminiKey.length : 0
+      geminiKeyLength: apiKeys.geminiKey ? apiKeys.geminiKey.length : 0,
+      geminiKeyStart: apiKeys.geminiKey ? apiKeys.geminiKey.substring(0, 5) : 'none'
     });
     console.log('Messages count:', messages?.length);
 
@@ -35,7 +36,8 @@ serve(async (req) => {
       hasOpenAI: !!openAIApiKey,
       hasClaude: !!claudeApiKey,
       geminiKeyPreview: geminiApiKey ? `${geminiApiKey.substring(0, 10)}...` : 'none',
-      openaiKeyPreview: openAIApiKey ? `${openAIApiKey.substring(0, 10)}...` : 'none'
+      geminiKeyLength: geminiApiKey ? geminiApiKey.length : 0,
+      geminiKeyStartsWithAI: geminiApiKey ? geminiApiKey.startsWith('AI') : false
     });
 
     // Validate API key format based on provider
@@ -53,11 +55,20 @@ serve(async (req) => {
         );
       }
 
-      if (!geminiApiKey.startsWith('AI') || geminiApiKey.length < 30) {
-        console.error('Invalid Gemini API key format:', geminiApiKey.substring(0, 10));
+      // More detailed validation logging
+      console.log('Validating Gemini API key:', {
+        key: geminiApiKey,
+        length: geminiApiKey.length,
+        startsWithAI: geminiApiKey.startsWith('AI'),
+        firstChars: geminiApiKey.substring(0, 10),
+        isValidLength: geminiApiKey.length >= 30
+      });
+
+      if (!geminiApiKey.startsWith('AI')) {
+        console.error('Invalid Gemini API key format - does not start with AI:', geminiApiKey.substring(0, 10));
         return new Response(
           JSON.stringify({ 
-            error: 'Formato API key Gemini non valido. La chiave deve iniziare con "AI" e essere lunga almeno 30 caratteri. Verifica di aver copiato correttamente la chiave da Google AI Studio.' 
+            error: `Formato API key Gemini non valido. La chiave deve iniziare con "AI" ma la tua inizia con "${geminiApiKey.substring(0, 5)}". Verifica di aver copiato correttamente la chiave da Google AI Studio.` 
           }), 
           { 
             status: 400, 
@@ -65,6 +76,22 @@ serve(async (req) => {
           }
         );
       }
+
+      if (geminiApiKey.length < 30) {
+        console.error('Invalid Gemini API key format - too short:', geminiApiKey.length);
+        return new Response(
+          JSON.stringify({ 
+            error: `Formato API key Gemini non valido. La chiave deve essere lunga almeno 30 caratteri ma la tua è lunga ${geminiApiKey.length}. Verifica di aver copiato completamente la chiave da Google AI Studio.` 
+          }), 
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      console.log('✅ Gemini API key validation passed');
+
     } else if (provider === 'openai') {
       if (!openAIApiKey) {
         console.error('OpenAI API key not found');
@@ -176,7 +203,8 @@ When generating components, make them:
         ]
       };
 
-      console.log('Gemini request URL:', geminiUrl.replace(geminiApiKey, 'API_KEY_HIDDEN'));
+      console.log('Gemini request URL (without key):', geminiUrl.replace(geminiApiKey, 'API_KEY_HIDDEN'));
+      console.log('Gemini request body:', JSON.stringify(geminiRequestBody, null, 2));
 
       const response = await fetch(geminiUrl, {
         method: 'POST',
@@ -200,7 +228,7 @@ When generating components, make them:
           const errorMsg = data.error.message.toLowerCase();
           
           if (errorMsg.includes('api_key_invalid') || errorMsg.includes('invalid api key') || errorMsg.includes('api key not valid')) {
-            errorMessage = 'API key Gemini non valida. Verifica che sia corretta nelle impostazioni. Vai su https://makersuite.google.com/app/apikey per ottenerne una nuova e assicurati di copiarla completamente.';
+            errorMessage = `❌ API key Gemini non valida. La chiave "${geminiApiKey.substring(0, 10)}..." non è riconosciuta da Google. Vai su https://makersuite.google.com/app/apikey per ottenerne una nuova e assicurati di copiarla completamente.`;
           } else if (errorMsg.includes('quota_exceeded') || errorMsg.includes('quota exceeded')) {
             errorMessage = 'Quota Gemini superata. Hai raggiunto il limite gratuito. Riprova più tardi o verifica i limiti del tuo account su Google AI Studio.';
           } else if (errorMsg.includes('permission_denied') || errorMsg.includes('permission denied')) {
@@ -213,11 +241,11 @@ When generating components, make them:
             errorMessage = `Errore Gemini: ${data.error.message}`;
           }
         } else if (response.status === 403) {
-          errorMessage = 'Accesso negato. Verifica che la tua API key Gemini sia valida e abbia i permessi necessari.';
+          errorMessage = `❌ Accesso negato (403). La tua API key "${geminiApiKey.substring(0, 10)}..." non ha i permessi necessari. Verifica che sia attiva su Google AI Studio.`;
         } else if (response.status === 429) {
           errorMessage = 'Troppe richieste. Hai superato il limite di rate di Gemini. Riprova tra qualche secondo.';
         } else if (response.status === 400) {
-          errorMessage = 'Richiesta non valida. Verifica la configurazione della tua API key Gemini.';
+          errorMessage = `❌ Richiesta non valida (400). Problema con la tua API key "${geminiApiKey.substring(0, 10)}..." o con la configurazione.`;
         }
         
         return new Response(
@@ -258,7 +286,7 @@ When generating components, make them:
       // Convert Gemini response to OpenAI format for compatibility
       const content = data.candidates[0].content.parts[0].text || 'No response generated';
       
-      console.log('Generated content length:', content.length);
+      console.log('✅ Generated content length:', content.length);
       console.log('Generated content preview:', content.substring(0, 200) + '...');
       
       const geminiResponse = {
