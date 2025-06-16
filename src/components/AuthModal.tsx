@@ -42,7 +42,11 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
       if (error.message?.includes('Invalid login credentials') || 
           error.message?.includes('invalid_credentials') ||
           error.code === 'invalid_credentials') {
-        toast.error('Credenziali non valide. Verifica che email e password siano corretti. Se hai appena creato l\'account, controlla la tua email per il link di conferma.');
+        toast.error('Credenziali non valide. Verifica che email e password siano corretti. Se hai appena creato l\'account, controlla la tua email per il link di conferma prima di accedere.');
+        // Auto-suggest forgot password for invalid credentials
+        setTimeout(() => {
+          toast.info('Hai dimenticato la password? Usa il link "Password dimenticata?" per reimpostarla.');
+        }, 2000);
       } else if (error.message?.includes('Email not confirmed') || 
                  error.message?.includes('email_not_confirmed')) {
         toast.error('Email non confermata. Controlla la tua casella di posta e clicca sul link di conferma prima di accedere.');
@@ -216,7 +220,8 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
                     <strong>Problemi di accesso?</strong><br/>
                     • Verifica che email e password siano corretti<br/>
                     • Se hai appena creato l'account, controlla la tua email per il link di conferma<br/>
-                    • Usa "Password dimenticata?" se non ricordi la password
+                    • Usa "Password dimenticata?" se non ricordi la password<br/>
+                    • Assicurati che l'account sia stato confermato tramite email
                   </div>
                 </div>
               </>
@@ -299,7 +304,8 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
               </p>
               <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
                 <strong>Dopo la registrazione:</strong><br/>
-                Controlla la tua email (inclusa la cartella spam) per il link di conferma dell'account
+                Controlla la tua email (inclusa la cartella spam) per il link di conferma dell'account.<br/>
+                <strong>Importante:</strong> Devi confermare l'email prima di poter accedere.
               </div>
             </div>
           </TabsContent>
