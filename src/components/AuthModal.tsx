@@ -35,15 +35,25 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
     } catch (error: any) {
       console.error('Sign in error:', error);
       
-      // Handle specific Supabase auth errors
-      if (error.message?.includes('Invalid login credentials') || error.message?.includes('invalid_credentials')) {
-        toast.error('Email o password non corretti. Verifica le tue credenziali e riprova.');
-      } else if (error.message?.includes('Email not confirmed')) {
-        toast.error('Per favore conferma la tua email prima di accedere.');
-      } else if (error.message?.includes('Too many requests')) {
-        toast.error('Troppi tentativi di accesso. Riprova tra qualche minuto.');
+      // Handle specific Supabase auth errors with more detailed messages
+      if (error.message?.includes('Invalid login credentials') || 
+          error.message?.includes('invalid_credentials') ||
+          error.code === 'invalid_credentials') {
+        toast.error('Credenziali non valide. Verifica che email e password siano corretti. Se hai appena creato l\'account, controlla la tua email per il link di conferma.');
+      } else if (error.message?.includes('Email not confirmed') || 
+                 error.message?.includes('email_not_confirmed')) {
+        toast.error('Email non confermata. Controlla la tua casella di posta e clicca sul link di conferma prima di accedere.');
+      } else if (error.message?.includes('Too many requests') || 
+                 error.message?.includes('rate_limit')) {
+        toast.error('Troppi tentativi di accesso. Attendi qualche minuto prima di riprovare.');
+      } else if (error.message?.includes('User not found') || 
+                 error.message?.includes('user_not_found')) {
+        toast.error('Nessun account trovato con questa email. Verifica l\'indirizzo email o registrati per creare un nuovo account.');
+      } else if (error.message?.includes('Invalid email')) {
+        toast.error('Formato email non valido. Inserisci un indirizzo email corretto.');
       } else {
-        toast.error(error.message || 'Errore durante l\'accesso. Riprova.');
+        // Generic fallback with helpful suggestions
+        toast.error('Errore durante l\'accesso. Verifica le tue credenziali o prova a reimpostare la password se hai dimenticato.');
       }
     } finally {
       setLoading(false);
@@ -61,23 +71,37 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
       return;
     }
 
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Per favore inserisci un indirizzo email valido');
+      return;
+    }
+
     setLoading(true);
     try {
       await signUp(email, password);
-      toast.success('Account creato! Controlla la tua email per confermare.');
+      toast.success('Account creato con successo! Controlla la tua email (inclusa la cartella spam) per il link di conferma.');
       onClose();
     } catch (error: any) {
       console.error('Sign up error:', error);
       
       // Handle specific Supabase auth errors
-      if (error.message?.includes('User already registered')) {
-        toast.error('Un account con questa email esiste già. Prova ad accedere invece.');
-      } else if (error.message?.includes('Password should be at least')) {
-        toast.error('La password deve essere di almeno 6 caratteri');
-      } else if (error.message?.includes('Invalid email')) {
-        toast.error('Per favore inserisci un indirizzo email valido');
+      if (error.message?.includes('User already registered') || 
+          error.message?.includes('user_already_exists') ||
+          error.code === 'user_already_exists') {
+        toast.error('Un account con questa email esiste già. Prova ad accedere o usa il reset password se hai dimenticato la password.');
+      } else if (error.message?.includes('Password should be at least') || 
+                 error.message?.includes('weak_password')) {
+        toast.error('La password deve essere di almeno 6 caratteri e sufficientemente sicura.');
+      } else if (error.message?.includes('Invalid email') || 
+                 error.message?.includes('invalid_email')) {
+        toast.error('Formato email non valido. Inserisci un indirizzo email corretto.');
+      } else if (error.message?.includes('Signup is disabled') || 
+                 error.message?.includes('signup_disabled')) {
+        toast.error('La registrazione è temporaneamente disabilitata. Riprova più tardi.');
       } else {
-        toast.error(error.message || 'Errore durante la registrazione. Riprova.');
+        toast.error('Errore durante la registrazione. Verifica i dati inseriti e riprova.');
       }
     } finally {
       setLoading(false);
@@ -90,21 +114,33 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
       return;
     }
 
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(resetEmail)) {
+      toast.error('Per favore inserisci un indirizzo email valido');
+      return;
+    }
+
     setResetLoading(true);
     try {
       await resetPasswordForEmail(resetEmail);
-      toast.success('Email di reset password inviata! Controlla la tua casella di posta.');
+      toast.success('Email di reset password inviata! Controlla la tua casella di posta (inclusa la cartella spam).');
       setShowForgotPassword(false);
       setResetEmail('');
     } catch (error: any) {
       console.error('Password reset error:', error);
       
-      if (error.message?.includes('Invalid email')) {
-        toast.error('Per favore inserisci un indirizzo email valido');
-      } else if (error.message?.includes('Email not found')) {
-        toast.error('Nessun account trovato con questa email');
+      if (error.message?.includes('Invalid email') || 
+          error.message?.includes('invalid_email')) {
+        toast.error('Formato email non valido. Inserisci un indirizzo email corretto.');
+      } else if (error.message?.includes('User not found') || 
+                 error.message?.includes('user_not_found')) {
+        toast.error('Nessun account trovato con questa email. Verifica l\'indirizzo email o registrati per creare un nuovo account.');
+      } else if (error.message?.includes('Rate limit') || 
+                 error.message?.includes('rate_limit')) {
+        toast.error('Troppe richieste di reset. Attendi qualche minuto prima di riprovare.');
       } else {
-        toast.error(error.message || 'Errore durante l\'invio dell\'email di reset. Riprova.');
+        toast.error('Errore durante l\'invio dell\'email di reset. Verifica l\'indirizzo email e riprova.');
       }
     } finally {
       setResetLoading(false);
@@ -133,7 +169,7 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value.trim())}
                     placeholder="la-tua-email@esempio.com"
                     required
                   />
@@ -167,6 +203,12 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
                   <p className="text-sm text-gray-600">
                     Non hai un account? Passa alla scheda "Registrati"
                   </p>
+                  <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                    <strong>Problemi di accesso?</strong><br/>
+                    • Verifica che email e password siano corretti<br/>
+                    • Se hai appena creato l'account, controlla la tua email per il link di conferma<br/>
+                    • Usa "Password dimenticata?" se non ricordi la password
+                  </div>
                 </div>
               </>
             ) : (
@@ -177,7 +219,7 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
                     id="reset-email"
                     type="email"
                     value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
+                    onChange={(e) => setResetEmail(e.target.value.trim())}
                     placeholder="la-tua-email@esempio.com"
                     required
                   />
@@ -215,7 +257,7 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
                 id="signup-email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value.trim())}
                 placeholder="la-tua-email@esempio.com"
                 required
               />
@@ -242,9 +284,15 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
             >
               {loading ? 'Registrazione in corso...' : 'Registrati'}
             </Button>
-            <p className="text-sm text-gray-600 text-center">
-              Hai già un account? Passa alla scheda "Accedi"
-            </p>
+            <div className="text-center space-y-2">
+              <p className="text-sm text-gray-600">
+                Hai già un account? Passa alla scheda "Accedi"
+              </p>
+              <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                <strong>Dopo la registrazione:</strong><br/>
+                Controlla la tua email (inclusa la cartella spam) per il link di conferma dell'account
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </DialogContent>
