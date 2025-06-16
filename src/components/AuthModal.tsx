@@ -29,7 +29,10 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
 
     setLoading(true);
     try {
-      await signIn(email, password);
+      const result = await signIn(email, password);
+      if (result?.error) {
+        throw result.error;
+      }
       toast.success('Accesso effettuato con successo!');
       onClose();
     } catch (error: any) {
@@ -80,7 +83,10 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
 
     setLoading(true);
     try {
-      await signUp(email, password);
+      const result = await signUp(email, password);
+      if (result?.error) {
+        throw result.error;
+      }
       toast.success('Account creato con successo! Controlla la tua email (inclusa la cartella spam) per il link di conferma.');
       onClose();
     } catch (error: any) {
@@ -123,7 +129,10 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
 
     setResetLoading(true);
     try {
-      await resetPasswordForEmail(resetEmail);
+      const result = await resetPasswordForEmail(resetEmail);
+      if (result?.error) {
+        throw result.error;
+      }
       toast.success('Email di reset password inviata! Controlla la tua casella di posta (inclusa la cartella spam).');
       setShowForgotPassword(false);
       setResetEmail('');
