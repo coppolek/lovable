@@ -92,9 +92,33 @@ const Index = () => {
     toast.success(`Progetto "${project.name}" caricato`);
   };
 
+  const checkApiKeyConfiguration = () => {
+    const settings = localStorage.getItem('lovable-clone-settings');
+    if (!settings) return false;
+    
+    try {
+      const parsed = JSON.parse(settings);
+      return !!(parsed.geminiKey || parsed.openaiKey || parsed.claudeKey);
+    } catch {
+      return false;
+    }
+  };
+
   const handleCreateProjectFromPrompt = async (name: string, description: string, prompt: string) => {
     if (!user) {
       toast.error('Devi essere autenticato per creare un progetto');
+      return;
+    }
+
+    // Check if any API key is configured
+    if (!checkApiKeyConfiguration()) {
+      toast.error('Nessuna API key configurata. Apri le Impostazioni per configurare almeno una API key AI.', {
+        duration: 6000,
+        action: {
+          label: 'Apri Impostazioni',
+          onClick: () => setSettingsOpen(true)
+        }
+      });
       return;
     }
 
@@ -128,12 +152,29 @@ Genera SOLO il codice del componente React, senza spiegazioni aggiuntive.`
         }
       ];
 
-      const aiResponse = await AIService.sendMessage(messages, 'gemini', 'gemini-1.5-flash');
-      console.log('AI Response received');
-      
-      // Extract code from AI response
-      const generatedCode = AIService.extractCodeFromResponse(aiResponse.content);
-      const finalCode = generatedCode || AIService.generateSampleComponent(prompt);
+      let aiResponse;
+      let finalCode;
+
+      try {
+        aiResponse = await AIService.sendMessage(messages, 'gemini', 'gemini-1.5-flash');
+        console.log('AI Response received');
+        
+        // Extract code from AI response
+        const generatedCode = AIService.extractCodeFromResponse(aiResponse.content);
+        finalCode = generatedCode || AIService.generateSampleComponent(prompt);
+      } catch (aiError) {
+        console.warn('AI generation failed, using fallback:', aiError);
+        toast.warning('Generazione AI non riuscita, creato template base. Configura una API key nelle Impostazioni per usare l\'AI.', {
+          duration: 6000,
+          action: {
+            label: 'Apri Impostazioni',
+            onClick: () => setSettingsOpen(true)
+          }
+        });
+        
+        // Use fallback template
+        finalCode = AIService.generateSampleComponent(prompt);
+      }
       
       console.log('Generated code length:', finalCode.length);
       
@@ -151,7 +192,23 @@ Genera SOLO il codice del componente React, senza spiegazioni aggiuntive.`
       
     } catch (error) {
       console.error('Error creating project from prompt:', error);
-      toast.error("Errore nella creazione del progetto: " + (error as Error).message);
+      
+      // Provide specific error messages based on the error type
+      if (error instanceof Error) {
+        if (error.message.includes('API key')) {
+          toast.error('Configura una API key AI nelle Impostazioni per usare la generazione automatica.', {
+            duration: 6000,
+            action: {
+              label: 'Apri Impostazioni',
+              onClick: () => setSettingsOpen(true)
+            }
+          });
+        } else {
+          toast.error("Errore nella creazione del progetto: " + error.message);
+        }
+      } else {
+        toast.error("Errore sconosciuto nella creazione del progetto");
+      }
     } finally {
       setIsCreatingProject(false);
     }
