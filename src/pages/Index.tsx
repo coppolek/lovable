@@ -5,10 +5,10 @@ import CodeEditor from "@/components/CodeEditor";
 import PreviewPanel from "@/components/PreviewPanel";
 import SettingsModal from "@/components/SettingsModal";
 import ProjectManager from "@/components/ProjectManager";
+import ProjectPrompt from "@/components/ProjectPrompt";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseProjects, SupabaseProject } from "@/hooks/useSupabaseProjects";
 import { toast } from "sonner";
-import ProjectTemplates from "@/components/ProjectTemplates";
 import CollaborationPanel from "@/components/CollaborationPanel";
 import AIAssistantPanel from "@/components/AIAssistantPanel";
 import { Brain } from "lucide-react";
@@ -17,6 +17,7 @@ import CommandPalette from "@/components/CommandPalette";
 import ShortcutsHelp from "@/components/ShortcutsHelp";
 import StatusBar from "@/components/StatusBar";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { AIService } from "@/services/aiService";
 
 const Index = () => {
   const [devMode, setDevMode] = useState(false);
@@ -26,12 +27,13 @@ const Index = () => {
   const [showProjectManager, setShowProjectManager] = useState(true);
   const { user, loading: authLoading } = useAuth();
   const { projects, createProject, updateProject, loading: projectsLoading } = useSupabaseProjects();
-  const [showTemplates, setShowTemplates] = useState(false);
+  const [showProjectPrompt, setShowProjectPrompt] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>();
   const [buildStatus, setBuildStatus] = useState<'success' | 'error' | 'building'>('success');
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user && projects.length > 0 && !selectedProject) {
@@ -86,37 +88,78 @@ const Index = () => {
     setSelectedProject(project);
     setCurrentCode(project.code);
     setShowProjectManager(false);
-    setShowTemplates(false);
+    setShowProjectPrompt(false);
     toast.success(`Progetto "${project.name}" caricato`);
   };
 
-  const handleSelectTemplate = async (template: any) => {
-    if (user) {
-      try {
-        console.log('Creating project from template:', template.name);
-        const newProject = await createProject(template.name, template.description);
-        console.log('Project created:', newProject);
-        
-        await updateProject(newProject.id, { code: template.code });
-        console.log('Template code applied');
-        
-        const updatedProject: SupabaseProject = { 
-          ...newProject, 
-          code: template.code 
-        };
-        
-        handleProjectSelect(updatedProject);
-        toast.success(`Progetto "${template.name}" creato da template`);
-      } catch (error) {
-        console.error('Error creating project from template:', error);
-        toast.error("Errore nella creazione del progetto da template");
-      }
+  const handleCreateProjectFromPrompt = async (name: string, description: string, prompt: string) => {
+    if (!user) {
+      toast.error('Devi essere autenticato per creare un progetto');
+      return;
+    }
+
+    setIsCreatingProject(true);
+    
+    try {
+      console.log('Creating project from prompt:', { name, description, prompt });
+      
+      // Create the project first
+      const newProject = await createProject(name, description);
+      console.log('Project created:', newProject);
+      
+      // Generate code using AI
+      toast.info('Generazione codice con AI in corso...');
+      
+      const messages = [
+        {
+          role: 'user' as const,
+          content: `Crea un'applicazione React completa basata su questa descrizione: ${prompt}
+
+Requisiti:
+- Usa React con TypeScript
+- Usa Tailwind CSS per lo styling
+- Crea un componente funzionale e moderno
+- Includi interazioni e stati appropriati
+- Assicurati che il codice sia completo e funzionante
+- Usa componenti shadcn/ui quando appropriato
+- Rendi l'interfaccia responsive e accattivante
+
+Genera SOLO il codice del componente React, senza spiegazioni aggiuntive.`
+        }
+      ];
+
+      const aiResponse = await AIService.sendMessage(messages, 'gemini', 'gemini-1.5-flash');
+      console.log('AI Response received');
+      
+      // Extract code from AI response
+      const generatedCode = AIService.extractCodeFromResponse(aiResponse.content);
+      const finalCode = generatedCode || AIService.generateSampleComponent(prompt);
+      
+      console.log('Generated code length:', finalCode.length);
+      
+      // Update project with generated code
+      await updateProject(newProject.id, { code: finalCode });
+      console.log('Project updated with generated code');
+      
+      const updatedProject: SupabaseProject = { 
+        ...newProject, 
+        code: finalCode 
+      };
+      
+      handleProjectSelect(updatedProject);
+      toast.success(`Progetto "${name}" creato con successo!`);
+      
+    } catch (error) {
+      console.error('Error creating project from prompt:', error);
+      toast.error("Errore nella creazione del progetto: " + (error as Error).message);
+    } finally {
+      setIsCreatingProject(false);
     }
   };
 
   const handleNewProject = () => {
     console.log('Starting new project flow');
-    setShowTemplates(true);
+    setShowProjectPrompt(true);
     setShowProjectManager(false);
   };
 
@@ -124,12 +167,12 @@ const Index = () => {
     setSelectedProject(undefined);
     setCurrentCode('');
     setShowProjectManager(true);
-    setShowTemplates(false);
+    setShowProjectPrompt(false);
   };
 
-  const handleCancelTemplateSelection = () => {
-    console.log('Template selection cancelled');
-    setShowTemplates(false);
+  const handleCancelProjectPrompt = () => {
+    console.log('Project prompt cancelled');
+    setShowProjectPrompt(false);
     setShowProjectManager(true);
   };
   
@@ -215,29 +258,10 @@ const Index = () => {
     }
   };
 
-  // Auto-save with status update
-  const handleCodeChangeWithStatus = (code: string) => {
-    setBuildStatus('building');
-    setCurrentCode(code);
-    
-    if (selectedProject && user) {
-      const timeoutId = setTimeout(() => {
-        updateProject(selectedProject.id, { code })
-          .then(() => {
-            setLastSaved(new Date());
-            setBuildStatus('success');
-          })
-          .catch(() => setBuildStatus('error'));
-      }, 1000);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  };
-
   console.log('Current state:', {
     showLandingPage,
     showProjectManager,
-    showTemplates,
+    showProjectPrompt,
     isProjectView,
     user: !!user,
     authLoading
@@ -260,11 +284,12 @@ const Index = () => {
           <div className="flex-1 flex items-center justify-center">
              <h1 className="text-4xl font-bold">Benvenuto! Accedi per iniziare.</h1>
           </div>
-        ) : showTemplates ? (
+        ) : showProjectPrompt ? (
           <div className="flex-1">
-            <ProjectTemplates
-              onSelectTemplate={handleSelectTemplate}
-              onCancel={handleCancelTemplateSelection}
+            <ProjectPrompt
+              onCreateProject={handleCreateProjectFromPrompt}
+              onCancel={handleCancelProjectPrompt}
+              isCreating={isCreatingProject}
             />
           </div>
         ) : !isProjectView || showProjectManager ? (
@@ -319,7 +344,7 @@ const Index = () => {
         currentProject={selectedProject?.name}
       />
 
-      {isProjectView && !showTemplates && (
+      {isProjectView && !showProjectPrompt && (
         <Button
           className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg hover:shadow-xl transition-all duration-200"
           onClick={() => setShowAIAssistant(!showAIAssistant)}
