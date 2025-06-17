@@ -5,10 +5,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Bot, User, Loader2, Code, Copy, Sparkles, Wand2, RefreshCw } from "lucide-react";
+import { Send, Bot, User, Loader2, Code, Copy, Sparkles, Wand2, RefreshCw, Settings, ExternalLink } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { AIService, Message } from "@/services/aiService";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ChatMessage extends Message {
   id: string;
@@ -19,9 +20,10 @@ interface ChatMessage extends Message {
 
 interface ChatInterfaceProps {
   onCodeGenerated: (code: string) => void;
+  onOpenSettings?: () => void;
 }
 
-const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
+const ChatInterface = ({ onCodeGenerated, onOpenSettings }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -34,6 +36,7 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedAI, setSelectedAI] = useState('gemini');
   const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
+  const [hasApiKey, setHasApiKey] = useState(false);
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [suggestedPrompts] = useState([
@@ -44,6 +47,36 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
     "Costruisci un sistema di chat realtime"
   ]);
 
+  // Check if API key is configured
+  useEffect(() => {
+    const checkApiKey = () => {
+      const settings = localStorage.getItem('lovable-clone-settings');
+      if (settings) {
+        try {
+          const parsed = JSON.parse(settings);
+          const hasGemini = parsed.geminiKey && parsed.geminiKey.startsWith('AI') && parsed.geminiKey.length >= 30;
+          const hasOpenAI = parsed.openaiKey && parsed.openaiKey.startsWith('sk-') && parsed.openaiKey.length >= 40;
+          const hasClaudeKey = parsed.claudeKey && parsed.claudeKey.length > 0;
+          
+          if (selectedAI === 'gemini') {
+            setHasApiKey(hasGemini);
+          } else if (selectedAI === 'openai') {
+            setHasApiKey(hasOpenAI);
+          } else if (selectedAI === 'claude') {
+            setHasApiKey(hasClaudeKey);
+          }
+        } catch (error) {
+          setHasApiKey(false);
+        }
+      } else {
+        setHasApiKey(false);
+      }
+    };
+
+    checkApiKey();
+    // Check again when selectedAI changes
+  }, [selectedAI]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -51,6 +84,10 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const openGeminiApiPage = () => {
+    window.open('https://makersuite.google.com/app/apikey', '_blank');
+  };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -124,7 +161,18 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMessage]);
-      toast.error("Errore nella comunicazione con l'AI");
+      
+      // Show specific error handling for API key issues
+      if (error.message.includes('API key') && error.message.includes('non configurata')) {
+        toast.error("Configura la tua API key nelle impostazioni per utilizzare l'AI", {
+          action: onOpenSettings ? {
+            label: "Apri Impostazioni",
+            onClick: onOpenSettings
+          } : undefined
+        });
+      } else {
+        toast.error("Errore nella comunicazione con l'AI");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -171,7 +219,53 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
             <Badge variant="secondary" className="text-xs">
               Powered by Gemini Flash
             </Badge>
+            {!hasApiKey && (
+              <Badge variant="destructive" className="text-xs">
+                API Key Required
+              </Badge>
+            )}
           </div>
+
+          {/* API Key Configuration Alert */}
+          {!hasApiKey && user && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <Settings className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                <div className="flex items-center justify-between">
+                  <span>
+                    {selectedAI === 'gemini' 
+                      ? 'Configura la tua API key Gemini gratuita per iniziare'
+                      : `Configura la tua API key ${selectedAI} per iniziare`
+                    }
+                  </span>
+                  <div className="flex gap-2 ml-4">
+                    {selectedAI === 'gemini' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={openGeminiApiPage}
+                        className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                      >
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        Ottieni Gratis
+                      </Button>
+                    )}
+                    {onOpenSettings && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onOpenSettings}
+                        className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                      >
+                        <Settings className="w-3 h-3 mr-1" />
+                        Impostazioni
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div>
             <label className="text-sm font-medium mb-2 block">AI Provider</label>
@@ -235,23 +329,76 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
           {/* Welcome message with suggested prompts */}
           {messages.length === 1 && (
             <div className="space-y-4">
-              <div className="bg-white p-4 rounded-lg border">
-                <h4 className="font-medium mb-2 flex items-center gap-2">
-                  <Wand2 className="w-4 h-4 text-purple-600" />
-                  Suggerimenti per iniziare
-                </h4>
-                <div className="grid gap-2">
-                  {suggestedPrompts.map((prompt, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSuggestedPrompt(prompt)}
-                      className="text-left p-2 rounded border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-colors text-sm"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
+              {/* API Key Setup Guide for new users */}
+              {!hasApiKey && user && (
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold mb-3 flex items-center gap-2 text-blue-800">
+                    <Sparkles className="w-5 h-5" />
+                    Inizia in 2 minuti con Gemini Flash (Gratuito)
+                  </h4>
+                  <div className="space-y-3 text-sm text-blue-700">
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                      <div>
+                        <p className="font-medium">Ottieni la tua API key gratuita</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={openGeminiApiPage}
+                          className="mt-2 text-blue-700 border-blue-300 hover:bg-blue-100"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Vai a Google AI Studio
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                      <div>
+                        <p className="font-medium">Configura l'API key nell'app</p>
+                        {onOpenSettings && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={onOpenSettings}
+                            className="mt-2 text-blue-700 border-blue-300 hover:bg-blue-100"
+                          >
+                            <Settings className="w-4 h-4 mr-2" />
+                            Apri Impostazioni
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</div>
+                      <div>
+                        <p className="font-medium">Inizia a creare con l'AI!</p>
+                        <p className="text-xs text-blue-600 mt-1">Completamente gratuito, nessuna carta di credito richiesta</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {hasApiKey && (
+                <div className="bg-white p-4 rounded-lg border">
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    <Wand2 className="w-4 h-4 text-purple-600" />
+                    Suggerimenti per iniziare
+                  </h4>
+                  <div className="grid gap-2">
+                    {suggestedPrompts.map((prompt, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleSuggestedPrompt(prompt)}
+                        className="text-left p-2 rounded border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-colors text-sm"
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -367,7 +514,7 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
               <div className="bg-white border shadow-sm p-3 rounded-lg">
                 <div className="flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm text-gray-500">Generando codice con Gemini Flash...</span>
+                  <span className="text-sm text-gray-500">Generando codice con {selectedAI}...</span>
                 </div>
               </div>
             </div>
@@ -395,12 +542,15 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={user 
-                ? "Descrivi cosa vuoi creare..." 
-                : "Accedi per utilizzare l'AI..."
+              placeholder={
+                !user 
+                  ? "Accedi per utilizzare l'AI..." 
+                  : !hasApiKey 
+                    ? "Configura prima la tua API key nelle impostazioni..."
+                    : "Descrivi cosa vuoi creare..."
               }
               className="pr-12"
-              disabled={isLoading || !user}
+              disabled={isLoading || !user || !hasApiKey}
             />
             {inputValue && (
               <Button
@@ -415,7 +565,7 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
           </div>
           <Button 
             onClick={handleSendMessage} 
-            disabled={!inputValue.trim() || isLoading || !user}
+            disabled={!inputValue.trim() || isLoading || !user || !hasApiKey}
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
           >
             {isLoading ? (
@@ -427,7 +577,7 @@ const ChatInterface = ({ onCodeGenerated }: ChatInterfaceProps) => {
         </div>
 
         {/* Quick actions */}
-        {user && (
+        {user && hasApiKey && (
           <div className="flex gap-2 mt-2">
             <Button variant="outline" size="sm" className="text-xs">
               💡 Suggerisci miglioramenti
